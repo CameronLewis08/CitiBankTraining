@@ -56,26 +56,29 @@ class Accounts:
     def deposit(self, amount):
         if amount > 0:
             self.account_balance += amount
-            self.add_transaction({"type": "deposit", "amount": amount})
+            self.add_transaction({"type": "deposit", "amount": amount, "status": TransactionStatus.SUCCESS})
             return {"status": TransactionStatus.SUCCESS, "type": "deposit", "amount": amount}
         
+        self.add_transaction({"type": "deposit", "amount": amount, "status": TransactionStatus.FAILURE})
         return {"status": TransactionStatus.FAILURE, "type": "deposit", "amount": amount}
 
     def withdraw(self, amount):
         if 0 < amount <= self.account_balance:
             self.account_balance -= amount
-            self.add_transaction({"type": "withdrawal", "amount": amount})
+            self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.SUCCESS})
 
             return {"status": TransactionStatus.SUCCESS, "type": "withdrawal", "amount": amount}
-        
+
+        self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.FAILURE})
         return {"status": TransactionStatus.FAILURE, "type": "withdrawal", "amount": amount}
     
     def transfer(self, amount, target_account):
         if self.withdraw(amount)["status"] == TransactionStatus.SUCCESS:
             target_account.deposit(amount)
-            self.add_transaction({"type": "transfer", "amount": amount})
+            self.add_transaction({"type": "transfer", "amount": amount, "status": TransactionStatus.SUCCESS})
             return {"status": TransactionStatus.SUCCESS, "type": "transfer", "amount": amount}
-        
+
+        self.add_transaction({"type": "transfer", "amount": amount, "status": TransactionStatus.FAILURE})
         return {"status": TransactionStatus.FAILURE, "type": "transfer", "amount": amount}
 
     def add_transaction(self, transaction):
@@ -96,25 +99,16 @@ class CheckingAccount(Accounts):
     def withdraw(self, amount):
         if amount > 0 and amount <= Overdraft_limit + self.account_balance:
             self.account_balance -= amount
-            self.add_transaction({"type": "withdrawal", "amount": amount})
+            self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.SUCCESS})
             return {"status": TransactionStatus.SUCCESS, "type": "withdrawal", "amount": amount}
-        
-        return {"status": TransactionStatus.FAILURE, "type": "withdrawal", "amount": amount}
 
-    
+        self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.FAILURE})
+        return {"status": TransactionStatus.FAILURE, "type": "withdrawal", "amount": amount}
 
 
 class SavingsAccount(Accounts):
     def __init__(self, account_number, account_balance, owner_id):
         super().__init__(account_number, AccountType.SAVINGS, account_balance, owner_id)
 
-    @override 
-    def withdraw(self, amount):
-        if amount > self.account_balance or amount <= 0:
-            return {"status": TransactionStatus.FAILURE, "type": "withdrawal", "amount": amount}
-        
-        self.account_balance -= amount
-        self.add_transaction({"type": "withdrawal", "amount": amount})
-        return {"status": TransactionStatus.SUCCESS, "type": "withdrawal", "amount": amount}
 
 
