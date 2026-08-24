@@ -6,7 +6,9 @@ Account Model for the Banking Domain Console Application:
 """
 
 from enum import Enum, auto
+from time import time
 from typing import override
+from users import UserRole
 
 Overdraft_limit = 500  # Example overdraft limit for checking accounts
 
@@ -30,15 +32,23 @@ class Accounts:
         self.transaction_history = []
         self.is_active = is_active
 
+    def get_account_number(self):
+        return self.account_number
 
-    def get_account_info(self):
-        return {
-            "account_number": self.account_number,
-            "account_type": self.account_type.value,
-            "account_balance": self.account_balance,
-            "owner_id": self.owner_id,
-            "is_active": self.is_active
-        }
+    def get_account_type(self):
+        return self.account_type
+    
+    def get_owner_id(self):
+        return self.owner_id
+
+    def get_account_balance(self):
+        return self.account_balance
+
+    def set_owner_id(self, user, new_owner_id):
+        if user._role != UserRole.MANAGER:
+            self.owner_id = new_owner_id
+        else:
+            raise PermissionError("Only Managers can change account ownership.")
 
     def get_transaction_history(self):
         return self.transaction_history
@@ -52,43 +62,50 @@ class Accounts:
         
         return None
     
+    def get_status(self):
+        return self.is_active
 
+    
     def deposit(self, amount):
         if amount > 0:
             self.account_balance += amount
-            self.add_transaction({"type": "deposit", "amount": amount, "status": TransactionStatus.SUCCESS})
+            self.add_transaction({"type": "deposit", "amount": amount, "status": TransactionStatus.SUCCESS, "timestamp": time.time()})
             return {"status": TransactionStatus.SUCCESS, "type": "deposit", "amount": amount}
         
-        self.add_transaction({"type": "deposit", "amount": amount, "status": TransactionStatus.FAILURE})
+        self.add_transaction({"type": "deposit", "amount": amount, "status": TransactionStatus.FAILURE, "timestamp": time.time()})
         return {"status": TransactionStatus.FAILURE, "type": "deposit", "amount": amount}
 
     def withdraw(self, amount):
         if 0 < amount <= self.account_balance:
             self.account_balance -= amount
-            self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.SUCCESS})
+            self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.SUCCESS, "timestamp": time.time()})
 
             return {"status": TransactionStatus.SUCCESS, "type": "withdrawal", "amount": amount}
 
-        self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.FAILURE})
+        self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.FAILURE, "timestamp": time.time()})
         return {"status": TransactionStatus.FAILURE, "type": "withdrawal", "amount": amount}
     
     def transfer(self, amount, target_account):
         if self.withdraw(amount)["status"] == TransactionStatus.SUCCESS:
             target_account.deposit(amount)
-            self.add_transaction({"type": "transfer", "amount": amount, "status": TransactionStatus.SUCCESS})
+            self.add_transaction({"type": "transfer", "amount": amount, "status": TransactionStatus.SUCCESS, "timestamp": time.time()})
             return {"status": TransactionStatus.SUCCESS, "type": "transfer", "amount": amount}
 
-        self.add_transaction({"type": "transfer", "amount": amount, "status": TransactionStatus.FAILURE})
+        self.add_transaction({"type": "transfer", "amount": amount, "status": TransactionStatus.FAILURE, "timestamp": time.time()})
         return {"status": TransactionStatus.FAILURE, "type": "transfer", "amount": amount}
 
     def add_transaction(self, transaction):
         self.transaction_history.append(transaction)
 
-    def is_account_active(self):
-        return self.is_active
+    def reactivate_account(self):
+            self.is_active = True
+
+    def deactivate_account(self):
+        self.is_active = False
 
     def __str__(self):
         return f"Account Number: {self.account_number}, Type: {self.account_type.value}, Balance: {self.account_balance}, Owner ID: {self.owner_id}, Active: {self.is_active}"
+
 
 
 class CheckingAccount(Accounts):
@@ -99,10 +116,10 @@ class CheckingAccount(Accounts):
     def withdraw(self, amount):
         if amount > 0 and amount <= Overdraft_limit + self.account_balance:
             self.account_balance -= amount
-            self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.SUCCESS})
+            self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.SUCCESS, "timestamp": time.time()})
             return {"status": TransactionStatus.SUCCESS, "type": "withdrawal", "amount": amount}
 
-        self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.FAILURE})
+        self.add_transaction({"type": "withdrawal", "amount": amount, "status": TransactionStatus.FAILURE, "timestamp": time.time()})
         return {"status": TransactionStatus.FAILURE, "type": "withdrawal", "amount": amount}
 
 
