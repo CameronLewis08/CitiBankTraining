@@ -6,9 +6,9 @@ Customer Model for the Banking Domain REST API:
 
 class Customers:
     def __init__(self, customer_id, name, email):
-        self.customer_id = customer_id
-        self.name = name
-        self.email = email
+        self.set_customer_id(customer_id)
+        self.set_name(name)
+        self.set_email(email)
 
     def get_customer_id(self):
         return self.customer_id
@@ -42,6 +42,12 @@ class Customers:
             self.email = new_email
             return f"Email updated to {new_email}."
 
+    def to_dict(self) -> dict:
+        return {
+            "customer_id": self.customer_id,
+            "name": self.name,
+            "email": self.email,
+        }
+
     def __repr__(self):
         return f"Customer ID: {self.customer_id}, Name: {self.name}, Email: {self.email}"
-        
