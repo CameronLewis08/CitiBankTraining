@@ -1,9 +1,48 @@
 # link to the shared google drive provided by the instructor
 https://drive.google.com/drive/folders/11pBENePQO_fIO_R7KWL2Cn2sCxX6hk3B
 
+<<<<<<< Updated upstream
 # tentative schedule
 
 9am est we start the day with a quiz
 30/60 minutes to complete it 
 
 11-11:15am est break
+=======
+# Preferred languages Python, Java
+# Postgres experience over Mongodb
+# Defend to defend code, validate, demo answering viva, explanations 
+# agile/ scrum processes 
+
+# figma can be useful for UI 
+
+# BA perspective 
+    # wireframes, BRD business requirement decisions, Product vision, Architecture Diagram, UMLs
+
+# Tech stack, Git branching strategy, Project Architecture, tools, ReadMe.Md/ instructions
+
+# Backend First approach
+# Backend RestAPI using MVC/Controllers -> Services -> Repos with Stubbing Mocked Data -> Postman, Swagger
+
+# Database: postgres/Mongodb
+(SQL, UML, ORM, select/where/joins/DDL/DML/TCL/Groupby/Hving/subqueries/inline queries)
+
+Frontend: React(Components, parent<->child, Props, Routing, hooks, Class driven)
+
+DevOps, SecOps, CI: Cloud, AWS, AWS Services, Deployment, CI-CD, Github Actions
+
+Code -> Build Artifact -> Imgages(Docker) -> Container 0-> Kubernetes Pods -> Cloud
+
+Security: JWT, Encryption, Salting, Hashing, Bcrypt 
+
+Optimization in speed, debugging, latency, Application Monitoring, tools
+
+Design: Microservices, Apache Kafka
+
+# MongoDb: Organization -> Project -> cluster -> collection -> document
+    SQL: collections like tables, document like row/record
+    IDs are auto generated 
+
+
+QB4VQVL2J4qaYwz
+>>>>>>> Stashed changes
