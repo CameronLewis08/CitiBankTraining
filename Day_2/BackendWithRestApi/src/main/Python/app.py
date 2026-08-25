@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from Controllers.CustomersController import CustomerController
-from Day_2.BackendWithRestApi.src.main.Python.Models.Customers import Customers
+from Models.Customers import Customers
 
 app = FastAPI(title="Banking Domain REST API")
 controller = CustomerController()

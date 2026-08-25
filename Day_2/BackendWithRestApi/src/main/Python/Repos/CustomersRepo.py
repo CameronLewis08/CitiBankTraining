@@ -55,13 +55,20 @@ class CustomerRepository:
         
         if "customer_id" in customer_data and customer_data["customer_id"] != customer_id:
             raise ValueError("Customer ID in the data does not match the provided customer ID.")
-        
-        collection = get_database().customers
-        result = collection.update_one({"customer_id": customer_id}, {"$set": customer_data})
-        if result.matched_count == 0:
+
+        customer = CustomerRepository.get_customer_by_id(customer_id)
+        if customer is None:
             raise ValueError(f"Customer with ID {customer_id} does not exist.")
-        
-        return CustomerRepository.get_customer_by_id(customer_id)
+
+        if "name" in customer_data:
+            customer.set_name(customer_data["name"])
+        if "email" in customer_data:
+            customer.set_email(customer_data["email"])
+
+        collection = get_database().customers
+        collection.update_one({"customer_id": customer_id}, {"$set": customer.to_dict()})
+
+        return customer
 
     @staticmethod
     def delete_customer(customer_id: int) -> bool:
