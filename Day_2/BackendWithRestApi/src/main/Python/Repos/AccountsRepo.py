@@ -1,30 +1,71 @@
+"""
+Account Repository for the Banking Domain REST API:
+    CRUD + deposit/withdraw/transfer against the 'accounts' MongoDB
+    collection. Balance only ever changes through deposit/withdraw/
+    transfer (never a direct PUT), so overdraft rules and transaction
+    history stay consistent.
+"""
 
 from Utilities.Database import get_database
-from Models.Accounts import Accounts
+from Models.Accounts import build_account
+from Utilities.Status import AccountType, AccountStatus
 from pymongo.errors import DuplicateKeyError
+
+
+def _to_account(doc):
+    return build_account(
+        AccountType(doc["account_type"]),
+        doc["account_id"],
+        doc["owner_id"],
+        doc["balance"],
+        doc["branch_code"],
+        status=AccountStatus(doc.get("status", AccountStatus.ACTIVE.value)),
+        transaction_history=doc.get("transaction_history", []),
+    )
+
 
 class AccountsRepository:
 
     @staticmethod
-    def get_all_accounts() -> list:
+    def get_all_accounts(owner_id=None):
         collection = get_database().accounts
-        return [Accounts(doc["account_id"], doc["customer_id"], doc["balance"]) for doc in collection.find()]
+        query = {"owner_id": owner_id} if owner_id is not None else {}
+        return [_to_account(doc) for doc in collection.find(query)]
 
     @staticmethod
-    def get_account_by_id(account_id: str) -> Accounts:
+    def get_account_by_id(account_id, owner_id=None):
         if not account_id:
             raise ValueError("Account ID must be provided.")
-        
+
         collection = get_database().accounts
-        doc = collection.find_one({"account_id": account_id})
-        return Accounts(doc["account_id"], doc["customer_id"], doc["balance"]) if doc else None
+        query = {"account_id": account_id}
+        if owner_id is not None:
+            # Scope the lookup so someone else's account looks identical to
+            # one that doesn't exist at all.
+            query["owner_id"] = owner_id
+        doc = collection.find_one(query)
+        return _to_account(doc) if doc else None
 
     @staticmethod
-    def create_account(account_data: dict) -> Accounts:
-        if not account_data.get("account_id") or not account_data.get("customer_id") or "balance" not in account_data:
-            raise ValueError("Account data must include 'account_id', 'customer_id', and 'balance' fields.")
+    def get_accounts_by_branch(branch_code):
+        collection = get_database().accounts
+        return [_to_account(doc) for doc in collection.find({"branch_code": branch_code})]
 
-        account = Accounts(account_data["account_id"], account_data["customer_id"], account_data["balance"])
+    @staticmethod
+    def create_account(account_data: dict):
+        required = ("account_id", "owner_id", "balance", "branch_code", "account_type")
+        if not all(field in account_data and account_data[field] not in (None, "") for field in required):
+            raise ValueError(
+                "Account data must include 'account_id', 'owner_id', 'balance', 'branch_code', and 'account_type' fields."
+            )
+
+        account = build_account(
+            account_data["account_type"],
+            account_data["account_id"],
+            account_data["owner_id"],
+            account_data["balance"],
+            account_data["branch_code"],
+        )
 
         collection = get_database().accounts
         try:
@@ -35,41 +76,55 @@ class AccountsRepository:
         return account
 
     @staticmethod
-    def update_account(account_id: str, account_data: dict) -> Accounts:
-        if not account_id:
-            raise ValueError("Account ID must be provided for update.")
-        
-        if not account_data or not account_data.get("customer_id") or "balance" not in account_data:
-            raise ValueError("Account data must include both 'customer_id' and 'balance' fields for update.")
-        
-        if "account_id" in account_data and account_data["account_id"] != account_id:
-            raise ValueError("Account ID in the data does not match the provided account ID.")
-
-        account = AccountsRepository.get_account_by_id(account_id)
-        if account is None:
-            raise ValueError(f"Account with ID {account_id} does not exist.")
-
-        if "customer_id" in account_data:
-            account.set_customer_id(account_data["customer_id"])
-        if "balance" in account_data:
-            account.set_balance(account_data["balance"])
-
+    def _save(account):
         collection = get_database().accounts
-        collection.update_one({"account_id": account_id}, {"$set": {"customer_id": account.get_customer_id(), "balance": account.get_balance()}})
-        
+        collection.update_one({"account_id": account.get_account_id()}, {"$set": account.to_dict()})
         return account
 
     @staticmethod
-    def delete_account(account_id: str) -> bool:
+    def deposit(account_id, amount, requesting_user_id=None):
+        account = AccountsRepository.get_account_by_id(account_id, requesting_user_id)
+        if account is None:
+            raise ValueError(f"Account with ID {account_id} does not exist.")
+        result = account.deposit(amount)
+        AccountsRepository._save(account)
+        return account, result
+
+    @staticmethod
+    def withdraw(account_id, amount, requesting_user_id=None):
+        account = AccountsRepository.get_account_by_id(account_id, requesting_user_id)
+        if account is None:
+            raise ValueError(f"Account with ID {account_id} does not exist.")
+        result = account.withdraw(amount)
+        AccountsRepository._save(account)
+        return account, result
+
+    @staticmethod
+    def delete_account(account_id, requesting_user_id=None):
         if not account_id:
             raise ValueError("Account ID must be provided for deletion.")
-        
+
         collection = get_database().accounts
-        result = collection.delete_one({"account_id": account_id})
+        query = {"account_id": account_id}
+        if requesting_user_id is not None:
+            query["owner_id"] = requesting_user_id
+        result = collection.delete_one(query)
         return result.deleted_count > 0
 
     @staticmethod
-    def transfer_funds(source_account_id: str, target_account_id: str, amount: float) -> None:
+    def set_status(account_id, status: AccountStatus, requesting_user_id=None):
+        account = AccountsRepository.get_account_by_id(account_id, requesting_user_id)
+        if account is None:
+            raise ValueError(f"Account with ID {account_id} does not exist.")
+        if status == AccountStatus.ACTIVE:
+            account.reactivate_account()
+        else:
+            account.deactivate_account()
+        AccountsRepository._save(account)
+        return account
+
+    @staticmethod
+    def transfer_funds(source_account_id, target_account_id, amount, requesting_user_id=None):
         if not source_account_id or not target_account_id:
             raise ValueError("Both source and target account IDs must be provided.")
         if amount <= 0:
@@ -83,14 +138,13 @@ class AccountsRepository:
         if target_account is None:
             raise ValueError(f"Target account with ID {target_account_id} does not exist.")
 
-        source_account.transfer(target_account, amount)
+        if requesting_user_id is not None and source_account.get_owner_id() != requesting_user_id:
+            # You can only ever move money OUT of your own account (moving
+            # money INTO someone else's account is fine and intentionally
+            # not restricted here).
+            raise ValueError("You do not have permission to transfer from this account.")
 
-        # Update both accounts in the database
-        AccountsRepository.update_account(
-            source_account.get_account_id(),
-            {"customer_id": source_account.get_customer_id(), "balance": source_account.get_balance()},
-        )
-        AccountsRepository.update_account(
-            target_account.get_account_id(),
-            {"customer_id": target_account.get_customer_id(), "balance": target_account.get_balance()},
-        )
+        result = source_account.transfer(amount, target_account)
+        AccountsRepository._save(source_account)
+        AccountsRepository._save(target_account)
+        return result
