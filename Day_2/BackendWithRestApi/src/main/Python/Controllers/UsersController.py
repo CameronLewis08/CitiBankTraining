@@ -11,8 +11,8 @@ class UsersController:
     def __init__(self):
         self.users_service = UsersService()
 
-    def get_all_users(self):
-        return self.users_service.get_all_users()
+    def get_all_users(self, requesting_user):
+        return self.users_service.get_all_users(requesting_user)
 
     def get_user_by_id(self, user_id):
         return self.users_service.get_user_by_id(user_id)
@@ -20,8 +20,8 @@ class UsersController:
     def create_user(self, requesting_user, user_data):
         return self.users_service.create_user(requesting_user, user_data)
 
-    def update_user(self, user_id, user_data):
-        return self.users_service.update_user(user_id, user_data)
+    def update_user(self, requesting_user, user_id, user_data):
+        return self.users_service.update_user(requesting_user, user_id, user_data)
 
     def delete_user(self, requesting_user, user_id):
         return self.users_service.delete_user(requesting_user, user_id)

@@ -79,7 +79,10 @@ class UsersRepository:
             user.branch_code = user_data["branch_code"]
 
         collection = get_database().users
-        collection.update_one({"user_id": user_id}, {"$set": user.to_dict()})
+        try:
+            collection.update_one({"user_id": user_id}, {"$set": user.to_dict()})
+        except DuplicateKeyError:
+            raise ValueError(f"User with email {user_data['email']} already exists.")
 
         return user
 

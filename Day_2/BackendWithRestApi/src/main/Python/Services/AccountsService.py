@@ -10,8 +10,17 @@ from Utilities.Status import UserRole, AccountStatus
 
 class AccountsService:
     @staticmethod
-    def get_all_accounts(owner_id=None):
-        return AccountsRepository.get_all_accounts(owner_id)
+    def get_all_accounts(requesting_user, owner_id=None):
+        if requesting_user.get_role() == UserRole.CUSTOMER:
+            return AccountsRepository.get_all_accounts(owner_id=requesting_user.get_user_id())
+        if requesting_user.get_role() in (UserRole.STAFF, UserRole.MANAGER):
+            if owner_id is None:
+                return AccountsRepository.get_accounts_by_branch(requesting_user.get_branch_code())
+            return AccountsRepository.get_all_accounts(owner_id=owner_id)
+        # Admin
+        if owner_id is None:
+            return AccountsRepository.get_all_accounts()
+        return AccountsRepository.get_all_accounts(owner_id=owner_id)
 
     @staticmethod
     def get_account_by_id(account_id, owner_id=None):
@@ -24,12 +33,22 @@ class AccountsService:
         return AccountsRepository.create_account(account_data)
 
     @staticmethod
-    def deposit(account_id, amount, requesting_user_id=None):
-        return AccountsRepository.deposit(account_id, amount, requesting_user_id)
+    def deposit(requesting_user, account_id, amount):
+        if requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
+            return AccountsRepository.deposit(account_id, amount)
+        owned_account = AccountsRepository.get_account_by_id(account_id, requesting_user.get_user_id())
+        if owned_account is None:
+            raise PermissionError("You do not have permission to deposit on this account.")
+        return AccountsRepository.deposit(account_id, amount, requesting_user.get_user_id())
 
     @staticmethod
-    def withdraw(account_id, amount, requesting_user_id=None):
-        return AccountsRepository.withdraw(account_id, amount, requesting_user_id)
+    def withdraw(requesting_user, account_id, amount):
+        if requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
+            return AccountsRepository.withdraw(account_id, amount)
+        owned_account = AccountsRepository.get_account_by_id(account_id, requesting_user.get_user_id())
+        if owned_account is None:
+            raise PermissionError("You do not have permission to withdraw on this account.")
+        return AccountsRepository.withdraw(account_id, amount, requesting_user.get_user_id())
 
     @staticmethod
     def delete_account(requesting_user, account_id):

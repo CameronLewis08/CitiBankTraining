@@ -130,6 +130,8 @@ class AccountsRepository:
     def transfer_funds(source_account_id, target_account_id, amount, requesting_user_id=None):
         if not source_account_id or not target_account_id:
             raise ValueError("Both source and target account IDs must be provided.")
+        if source_account_id == target_account_id:
+            raise ValueError("Cannot transfer to the same account.")
         if amount <= 0:
             raise ValueError("Transfer amount must be positive.")
 
@@ -145,7 +147,7 @@ class AccountsRepository:
             # You can only ever move money OUT of your own account (moving
             # money INTO someone else's account is fine and intentionally
             # not restricted here).
-            raise ValueError("You do not have permission to transfer from this account.")
+            raise PermissionError("You do not have permission to transfer from this account.")
 
         result = source_account.transfer(amount, target_account)
         AccountsRepository._save(source_account)

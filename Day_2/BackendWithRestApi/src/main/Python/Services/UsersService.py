@@ -14,7 +14,9 @@ from Utilities.Status import UserRole
 
 class UsersService:
     @staticmethod
-    def get_all_users():
+    def get_all_users(requesting_user):
+        if requesting_user.get_role() == UserRole.CUSTOMER:
+            raise PermissionError("Only Staff can view all users.")
         return UsersRepository.get_all_users()
 
     @staticmethod
@@ -27,6 +29,11 @@ class UsersService:
             raise PermissionError("Only Admins and Managers can create users.")
 
         user_data = dict(user_data)
+        try:
+            UserRole(user_data.get("role"))
+        except ValueError:
+            raise ValueError(f"Invalid role: {user_data.get('role')!r}")
+
         password = user_data.pop("password", None)
         if password:
             hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
@@ -34,7 +41,14 @@ class UsersService:
         return UsersRepository.create_user(user_data)
 
     @staticmethod
-    def update_user(user_id, user_data):
+    def update_user(requesting_user, user_id, user_data):
+        is_self = requesting_user.get_user_id() == user_id
+        if "branch_code" in user_data and not is_self:
+            if requesting_user.get_role() != UserRole.ADMIN:
+                raise PermissionError("Only Admins can change another user's branch code.")
+        if not is_self:
+            if requesting_user.get_role() not in (UserRole.ADMIN, UserRole.MANAGER):
+                raise PermissionError("Only the user themself, or an Admin/Manager, can update a user's profile.")
         return UsersRepository.update_user(user_id, user_data)
 
     @staticmethod

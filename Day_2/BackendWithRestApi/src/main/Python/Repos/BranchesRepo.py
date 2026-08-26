@@ -34,9 +34,14 @@ class BranchesRepository:
         if not branch_data.get("branch_code") or not branch_data.get("location"):
             raise ValueError("Branch data must include 'branch_code' and 'location' fields.")
 
+        branch = Branches(
+            branch_data["branch_code"], branch_data["location"],
+            manager_id=branch_data.get("manager_id"), staff_list=branch_data.get("staff_list"),
+        )
+
         collection = get_database().branches
         try:
-            collection.insert_one(branch_data)
+            collection.insert_one(branch.to_dict())
         except DuplicateKeyError:
             raise ValueError(f"Branch with code {branch_data['branch_code']} already exists.")
 

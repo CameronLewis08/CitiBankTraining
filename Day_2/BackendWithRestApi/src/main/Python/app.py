@@ -66,6 +66,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     branch_code: Optional[str] = None
+    requesting_user_id: int
 
 
 class LoginRequest(BaseModel):
@@ -97,7 +98,7 @@ class AccountCreate(BaseModel):
 
 class AmountRequest(BaseModel):
     amount: float
-    requesting_user_id: Optional[int] = None
+    requesting_user_id: int
 
 
 class AccountTransfer(BaseModel):
@@ -149,9 +150,7 @@ def login(payload: LoginRequest):
 @app.get("/users")
 def get_all_users(requesting_user_id: int):
     requesting_user = _require_user(requesting_user_id)
-    if requesting_user.get_role().value == "Customer":
-        raise HTTPException(status_code=403, detail="Only Staff can view all users.")
-    return [_serialize_user(user) for user in users_controller.get_all_users()]
+    return [_serialize_user(user) for user in users_controller.get_all_users(requesting_user)]
 
 
 @app.get("/users/{user_id}")
@@ -175,8 +174,10 @@ def create_user(payload: UserCreate):
 
 @app.put("/users/{user_id}")
 def update_user(user_id: int, payload: UserUpdate):
+    requesting_user = _require_user(payload.requesting_user_id)
     try:
-        updated_user = users_controller.update_user(user_id, payload.model_dump(exclude_unset=True))
+        data = payload.model_dump(exclude={"requesting_user_id"}, exclude_unset=True)
+        updated_user = users_controller.update_user(requesting_user, user_id, data)
         return _serialize_user(updated_user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -232,8 +233,9 @@ def delete_branch(branch_code: str, requesting_user_id: int):
 
 
 @app.get("/accounts")
-def get_all_accounts(owner_id: int):
-    accounts = accounts_controller.get_all_accounts(owner_id)
+def get_all_accounts(requesting_user_id: int, owner_id: Optional[int] = None):
+    requesting_user = _require_user(requesting_user_id)
+    accounts = accounts_controller.get_all_accounts(requesting_user, owner_id)
     return [_serialize_account(account) for account in accounts]
 
 
@@ -258,8 +260,9 @@ def create_account(payload: AccountCreate):
 
 @app.post("/accounts/{account_id}/deposit")
 def deposit(account_id: str, payload: AmountRequest):
+    requesting_user = _require_user(payload.requesting_user_id)
     try:
-        account, result = accounts_controller.deposit(account_id, payload.amount, payload.requesting_user_id)
+        account, result = accounts_controller.deposit(requesting_user, account_id, payload.amount)
         return {"account": _serialize_account(account), "result": result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -267,8 +270,9 @@ def deposit(account_id: str, payload: AmountRequest):
 
 @app.post("/accounts/{account_id}/withdraw")
 def withdraw(account_id: str, payload: AmountRequest):
+    requesting_user = _require_user(payload.requesting_user_id)
     try:
-        account, result = accounts_controller.withdraw(account_id, payload.amount, payload.requesting_user_id)
+        account, result = accounts_controller.withdraw(requesting_user, account_id, payload.amount)
         return {"account": _serialize_account(account), "result": result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

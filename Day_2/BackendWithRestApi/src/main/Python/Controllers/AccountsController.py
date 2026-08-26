@@ -10,8 +10,8 @@ class AccountsController:
     def __init__(self):
         self.accounts_service = AccountsService()
 
-    def get_all_accounts(self, owner_id=None):
-        return self.accounts_service.get_all_accounts(owner_id)
+    def get_all_accounts(self, requesting_user, owner_id=None):
+        return self.accounts_service.get_all_accounts(requesting_user, owner_id)
 
     def get_account_by_id(self, account_id, owner_id=None):
         return self.accounts_service.get_account_by_id(account_id, owner_id)
@@ -19,11 +19,11 @@ class AccountsController:
     def create_account(self, requesting_user, account_data):
         return self.accounts_service.create_account(requesting_user, account_data)
 
-    def deposit(self, account_id, amount, requesting_user_id=None):
-        return self.accounts_service.deposit(account_id, amount, requesting_user_id)
+    def deposit(self, requesting_user, account_id, amount):
+        return self.accounts_service.deposit(requesting_user, account_id, amount)
 
-    def withdraw(self, account_id, amount, requesting_user_id=None):
-        return self.accounts_service.withdraw(account_id, amount, requesting_user_id)
+    def withdraw(self, requesting_user, account_id, amount):
+        return self.accounts_service.withdraw(requesting_user, account_id, amount)
 
     def delete_account(self, requesting_user, account_id):
         return self.accounts_service.delete_account(requesting_user, account_id)

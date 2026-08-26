@@ -64,11 +64,6 @@ class Accounts(ABC):
             raise ValueError("Owner ID cannot be empty.")
         self._owner_id = owner_id
 
-    def set_balance(self, balance):
-        if balance < 0:
-            raise ValueError("Initial balance cannot be negative.")
-        self._balance = balance
-
     def deactivate_account(self):
         self.status = AccountStatus.INACTIVE
 
@@ -96,8 +91,6 @@ class Accounts(ABC):
     def transfer(self, amount, target_account):
         if target_account.is_active() and self.withdraw(amount)["status"] == OutcomeStatus.SUCCESS.value:
             target_account.deposit(amount)
-            self.add_transaction({"type": "transfer", "amount": amount,
-                                   "status": OutcomeStatus.SUCCESS.value, "timestamp": time.time()})
             return {"status": OutcomeStatus.SUCCESS.value, "type": "transfer", "amount": amount}
 
         self.add_transaction({"type": "transfer", "amount": amount,
