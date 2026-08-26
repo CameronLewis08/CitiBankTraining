@@ -26,9 +26,12 @@ def get_database():
             )
         _client = MongoClient(uri)
 
-        customers_collection = _client[db_name].customers
-        customers_collection.create_index("customer_id", unique=True)
-        customers_collection.create_index("email", unique=True)
+        users_collection = _client[db_name].users
+        users_collection.create_index("user_id", unique=True)
+        users_collection.create_index("email", unique=True)
+
+        branches_collection = _client[db_name].branches
+        branches_collection.create_index("branch_code", unique=True)
 
         accounts_collection = _client[db_name].accounts
         accounts_collection.create_index("account_id", unique=True)
