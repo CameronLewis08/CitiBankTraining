@@ -1,0 +1,40 @@
+import pytest
+
+from Models.Users import Users
+from Services.AccountsService import AccountsService
+from Utilities.Status import AccountStatus, UserRole
+
+
+def make_user(role, user_id=1):
+    return Users(user_id, "Test User", "test.user@example.com", role, branch_code="BR001")
+
+
+def test_create_account_rejects_customer():
+    customer = make_user(UserRole.CUSTOMER)
+    with pytest.raises(PermissionError):
+        AccountsService.create_account(customer, {
+            "account_id": "ACC-1", "owner_id": 1, "balance": 100.0,
+            "branch_code": "BR001", "account_type": "Checking",
+        })
+
+
+def test_delete_account_rejects_customer():
+    customer = make_user(UserRole.CUSTOMER)
+    with pytest.raises(PermissionError):
+        AccountsService.delete_account(customer, "ACC-1")
+
+
+def test_set_status_rejects_customer():
+    customer = make_user(UserRole.CUSTOMER)
+    with pytest.raises(PermissionError):
+        AccountsService.set_status(customer, "ACC-1", AccountStatus.INACTIVE)
+
+
+def test_set_status_allows_staff_to_reach_repo_layer():
+    # Staff passes the permission gate; it will only fail later once it
+    # tries to reach a real Mongo connection, proving the gate itself did
+    # not block a legitimate role.
+    staff = make_user(UserRole.STAFF)
+    with pytest.raises(Exception) as exc_info:
+        AccountsService.set_status(staff, "ACC-DOES-NOT-EXIST", AccountStatus.INACTIVE)
+    assert not isinstance(exc_info.value, PermissionError)
