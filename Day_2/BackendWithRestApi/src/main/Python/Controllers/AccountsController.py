@@ -1,23 +1,35 @@
+"""
+Account Controller for the Banking Domain REST API:
+    Thin pass-through to AccountsService.
+"""
+
 from Services.AccountsService import AccountsService
+
 
 class AccountsController:
     def __init__(self):
         self.accounts_service = AccountsService()
 
-    def get_all_accounts(self):
-        return self.accounts_service.get_all_accounts()
-    
-    def get_account_by_id(self, account_id):
-        return self.accounts_service.get_account_by_id(account_id)
+    def get_all_accounts(self, owner_id=None):
+        return self.accounts_service.get_all_accounts(owner_id)
 
-    def create_account(self, account_data):
-        return self.accounts_service.create_account(account_data)
+    def get_account_by_id(self, account_id, owner_id=None):
+        return self.accounts_service.get_account_by_id(account_id, owner_id)
 
-    def update_account(self, account_id, account_data):
-        return self.accounts_service.update_account(account_id, account_data)
+    def create_account(self, requesting_user, account_data):
+        return self.accounts_service.create_account(requesting_user, account_data)
 
-    def delete_account(self, account_id):
-        return self.accounts_service.delete_account(account_id)
+    def deposit(self, account_id, amount, requesting_user_id=None):
+        return self.accounts_service.deposit(account_id, amount, requesting_user_id)
 
-    def transfer_funds(self, from_account_id, to_account_id, amount):
-        return self.accounts_service.transfer_funds(from_account_id, to_account_id, amount)
+    def withdraw(self, account_id, amount, requesting_user_id=None):
+        return self.accounts_service.withdraw(account_id, amount, requesting_user_id)
+
+    def delete_account(self, requesting_user, account_id):
+        return self.accounts_service.delete_account(requesting_user, account_id)
+
+    def set_status(self, requesting_user, account_id, status):
+        return self.accounts_service.set_status(requesting_user, account_id, status)
+
+    def transfer_funds(self, from_account_id, to_account_id, amount, requesting_user_id=None):
+        return self.accounts_service.transfer_funds(from_account_id, to_account_id, amount, requesting_user_id)
