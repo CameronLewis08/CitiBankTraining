@@ -28,3 +28,6 @@ class UsersController:
 
     def login(self, email, password):
         return self.users_service.login(email, password)
+
+    def search_users_by_branch(self, requesting_user, branch_code, role=None, name=None):
+        return self.users_service.search_users_by_branch(requesting_user, branch_code, role, name)

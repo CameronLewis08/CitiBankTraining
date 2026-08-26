@@ -33,3 +33,6 @@ class AccountsController:
 
     def transfer_funds(self, requesting_user, from_account_id, to_account_id, amount):
         return self.accounts_service.transfer_funds(requesting_user, from_account_id, to_account_id, amount)
+
+    def search_accounts_by_branch(self, requesting_user, branch_code, account_type=None, status=None):
+        return self.accounts_service.search_accounts_by_branch(requesting_user, branch_code, account_type, status)

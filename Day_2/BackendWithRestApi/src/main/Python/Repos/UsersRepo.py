@@ -5,6 +5,8 @@ User Repository for the Banking Domain REST API:
     customer_id -> user_id and with a role/branch_code field.
 """
 
+import re
+
 from Utilities.Database import get_database
 from Models.Users import Users
 from pymongo.errors import DuplicateKeyError
@@ -87,6 +89,16 @@ class UsersRepository:
             raise ValueError("Update violates a uniqueness constraint.")
 
         return user
+
+    @staticmethod
+    def search_users_by_branch(branch_code, role=None, name=None) -> list:
+        query = {"branch_code": branch_code}
+        if role is not None:
+            query["role"] = role
+        if name:
+            query["name"] = {"$regex": re.escape(name), "$options": "i"}
+        collection = get_database().users
+        return [_to_user(doc) for doc in collection.find(query)]
 
     @staticmethod
     def delete_user(user_id: int) -> bool:

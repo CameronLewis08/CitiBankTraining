@@ -58,6 +58,13 @@ class UsersService:
         return UsersRepository.delete_user(user_id)
 
     @staticmethod
+    def search_users_by_branch(requesting_user, branch_code, role=None, name=None):
+        if requesting_user.get_role() != UserRole.ADMIN:
+            raise PermissionError("Only Admins can search users by branch.")
+        resolved_role = UserRole(role).value if role is not None else None
+        return UsersRepository.search_users_by_branch(branch_code, resolved_role, name)
+
+    @staticmethod
     def login(email, password):
         user = UsersRepository.get_user_by_email(email)
         if not user or not user.verify_password(password):

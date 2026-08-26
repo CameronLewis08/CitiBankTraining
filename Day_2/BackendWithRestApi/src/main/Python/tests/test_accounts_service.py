@@ -67,3 +67,38 @@ def test_transfer_funds_allows_staff_to_bypass_ownership_check():
     with pytest.raises(Exception) as exc_info:
         AccountsService.transfer_funds(staff, "ACC-DOES-NOT-EXIST-A", "ACC-DOES-NOT-EXIST-B", 10.0)
     assert not isinstance(exc_info.value, PermissionError)
+
+
+def test_search_accounts_by_branch_rejects_non_admin():
+    staff = make_user(UserRole.STAFF)
+    with pytest.raises(PermissionError):
+        AccountsService.search_accounts_by_branch(staff, "BR001")
+
+
+def test_search_accounts_by_branch_rejects_invalid_account_type():
+    admin = make_user(UserRole.ADMIN)
+    with pytest.raises(ValueError):
+        AccountsService.search_accounts_by_branch(admin, "BR001", account_type="Bogus")
+
+
+def test_search_accounts_by_branch_rejects_invalid_status():
+    admin = make_user(UserRole.ADMIN)
+    with pytest.raises(ValueError):
+        AccountsService.search_accounts_by_branch(admin, "BR001", status="Bogus")
+
+
+def test_search_accounts_by_branch_allows_admin_and_threads_filters(monkeypatch):
+    # Repo call is stubbed so this stays DB-free regardless of environment
+    # and verifies both that the Admin gate passes and that the resolved
+    # enum values are threaded through to the Repo call correctly.
+    admin = make_user(UserRole.ADMIN)
+    captured = {}
+
+    def fake_search(branch_code, account_type=None, status=None):
+        captured["args"] = (branch_code, account_type, status)
+        return []
+
+    monkeypatch.setattr(AccountsRepository, "search_accounts_by_branch", staticmethod(fake_search))
+    result = AccountsService.search_accounts_by_branch(admin, "BR001", account_type="Checking", status="active")
+    assert result == []
+    assert captured["args"] == ("BR001", "Checking", "active")

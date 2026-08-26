@@ -52,6 +52,16 @@ class AccountsRepository:
         return [_to_account(doc) for doc in collection.find({"branch_code": branch_code})]
 
     @staticmethod
+    def search_accounts_by_branch(branch_code, account_type=None, status=None):
+        query = {"branch_code": branch_code}
+        if account_type is not None:
+            query["account_type"] = account_type
+        if status is not None:
+            query["status"] = status
+        collection = get_database().accounts
+        return [_to_account(doc) for doc in collection.find(query)]
+
+    @staticmethod
     def create_account(account_data: dict):
         required = ("account_id", "owner_id", "balance", "branch_code", "account_type")
         if not all(field in account_data and account_data[field] not in (None, "") for field in required):

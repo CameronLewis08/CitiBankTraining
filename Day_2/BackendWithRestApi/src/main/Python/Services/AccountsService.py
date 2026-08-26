@@ -6,7 +6,7 @@ Account Service for the Banking Domain REST API:
 
 from Repos.AccountsRepo import AccountsRepository
 from Repos.UsersRepo import UsersRepository
-from Utilities.Status import UserRole, AccountStatus
+from Utilities.Status import UserRole, AccountType, AccountStatus
 
 
 class AccountsService:
@@ -73,6 +73,14 @@ class AccountsService:
         if requesting_user.get_role() not in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
             raise PermissionError("Only Admins, Managers, and Staff can change account status.")
         return AccountsRepository.set_status(account_id, status)
+
+    @staticmethod
+    def search_accounts_by_branch(requesting_user, branch_code, account_type=None, status=None):
+        if requesting_user.get_role() != UserRole.ADMIN:
+            raise PermissionError("Only Admins can search accounts by branch.")
+        resolved_type = AccountType(account_type).value if account_type is not None else None
+        resolved_status = AccountStatus(status).value if status is not None else None
+        return AccountsRepository.search_accounts_by_branch(branch_code, resolved_type, resolved_status)
 
     @staticmethod
     def transfer_funds(requesting_user, from_account_id, to_account_id, amount):

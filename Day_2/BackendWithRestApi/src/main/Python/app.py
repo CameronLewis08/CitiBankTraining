@@ -323,6 +323,32 @@ def delete_account(account_id: str, requesting_user_id: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/branches/{branch_code}/accounts")
+def search_accounts_by_branch(
+    branch_code: str, requesting_user_id: int,
+    account_type: Optional[str] = None, status: Optional[str] = None,
+):
+    requesting_user = _require_user(requesting_user_id)
+    try:
+        accounts = accounts_controller.search_accounts_by_branch(requesting_user, branch_code, account_type, status)
+        return [_serialize_account(account) for account in accounts]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/branches/{branch_code}/users")
+def search_users_by_branch(
+    branch_code: str, requesting_user_id: int,
+    role: Optional[str] = None, name: Optional[str] = None,
+):
+    requesting_user = _require_user(requesting_user_id)
+    try:
+        users = users_controller.search_users_by_branch(requesting_user, branch_code, role, name)
+        return [_serialize_user(user) for user in users]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/accounts/transfer")
 def transfer_funds(payload: AccountTransfer):
     requesting_user = _require_user(payload.requesting_user_id)
