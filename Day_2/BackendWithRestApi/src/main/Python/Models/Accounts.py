@@ -24,7 +24,7 @@ class Accounts(ABC):
                  status=AccountStatus.ACTIVE, transaction_history=None):
         self.set_account_id(account_id)
         self.set_owner_id(owner_id)
-        self.set_balance(balance)
+        self._balance = balance
         self.branch_code = branch_code
         self.account_type = account_type
         self.status = status if isinstance(status, AccountStatus) else AccountStatus(status)

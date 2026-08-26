@@ -59,6 +59,9 @@ class AccountsRepository:
                 "Account data must include 'account_id', 'owner_id', 'balance', 'branch_code', and 'account_type' fields."
             )
 
+        if account_data["balance"] < 0:
+            raise ValueError("Initial balance cannot be negative.")
+
         account = build_account(
             account_data["account_type"],
             account_data["account_id"],
