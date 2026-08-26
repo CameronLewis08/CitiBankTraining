@@ -1,7 +1,7 @@
 """
 REST API entry point for the Banking Domain application:
-    Exposes HTTP endpoints for customer CRUD operations, backed by the
-    existing Controller/Service/Repo layers. Run with:
+    Exposes HTTP endpoints for user (role-based), branch, and account
+    operations, backed by the Controller/Service/Repo layers. Run with:
         uvicorn app:app --reload
 """
 
@@ -9,17 +9,30 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from Controllers.CustomersController import CustomerController
+from Controllers.UsersController import UsersController
+from Controllers.BranchesController import BranchesController
 from Controllers.AccountsController import AccountsController
-from Models.Customers import Customers
+from Models.Users import Users
+from Models.Branches import Branches
 from Models.Accounts import Accounts
+from Utilities.Status import AccountStatus
 
 app = FastAPI(title="Banking Domain REST API")
-controller = CustomerController()
+users_controller = UsersController()
+branches_controller = BranchesController()
 accounts_controller = AccountsController()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(RequestValidationError)
@@ -27,130 +40,286 @@ def handle_validation_error(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=400, content={"detail": exc.errors()})
 
 
-class CustomerCreate(BaseModel):
-    customer_id: int
+@app.exception_handler(PermissionError)
+def handle_permission_error(request: Request, exc: PermissionError):
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+
+def _require_user(user_id: int) -> Users:
+    user = users_controller.get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Unknown requesting_user_id.")
+    return user
+
+
+class UserCreate(BaseModel):
+    user_id: int
     name: str
     email: str
+    role: str
+    branch_code: Optional[str] = None
+    password: Optional[str] = None
+    requesting_user_id: int
 
 
-class CustomerUpdate(BaseModel):
+class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
+    branch_code: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class BranchCreate(BaseModel):
+    branch_code: str
+    location: str
+    manager_id: Optional[int] = None
+    requesting_user_id: int
+
+
+class BranchUpdate(BaseModel):
+    location: Optional[str] = None
+    manager_id: Optional[int] = None
+    requesting_user_id: int
 
 
 class AccountCreate(BaseModel):
     account_id: str
-    customer_id: int
+    owner_id: int
     balance: float
+    branch_code: str
+    account_type: str
+    requesting_user_id: int
 
 
-class AccountUpdate(BaseModel):
-    customer_id: int
-    balance: float
+class AmountRequest(BaseModel):
+    amount: float
+    requesting_user_id: Optional[int] = None
 
 
 class AccountTransfer(BaseModel):
+    requesting_user_id: int
     from_account_id: str
     to_account_id: str
     amount: float
 
 
-def _serialize(customer: Customers) -> dict:
+def _serialize_user(user: Users) -> dict:
     return {
-        "customer_id": customer.get_customer_id(),
-        "name": customer.get_name(),
-        "email": customer.get_email(),
+        "user_id": user.get_user_id(),
+        "name": user.get_name(),
+        "email": user.get_email(),
+        "role": user.get_role().value,
+        "branch_code": user.get_branch_code(),
+    }
+
+
+def _serialize_branch(branch: Branches) -> dict:
+    return {
+        "branch_code": branch.get_branch_code(),
+        "location": branch.get_location(),
+        "manager_id": branch.manager_id,
+        "staff_list": branch.staff_list,
     }
 
 
 def _serialize_account(account: Accounts) -> dict:
     return {
         "account_id": account.get_account_id(),
-        "customer_id": account.get_customer_id(),
+        "owner_id": account.get_owner_id(),
         "balance": account.get_balance(),
+        "branch_code": account.get_branch_code(),
+        "account_type": account.get_account_type().value,
+        "status": account.get_status().value,
     }
 
-@app.get("/customers")
-def get_all_customers():
-    customers = controller.get_all_customers()
-    return [_serialize(customer) for customer in customers]
 
-@app.get("/customers/{customer_id}")
-def get_customer_by_id(customer_id: int):
-    customer = controller.get_customer_by_id(customer_id)
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return _serialize(customer)
-
-@app.post("/customers")
-def create_customer(customer: CustomerCreate):
+@app.post("/login")
+def login(payload: LoginRequest):
     try:
-        new_customer = controller.create_customer(customer.model_dump())
-        return _serialize(new_customer)
+        user = users_controller.login(payload.email, payload.password)
+        return _serialize_user(user)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@app.get("/users")
+def get_all_users(requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    if requesting_user.get_role().value == "Customer":
+        raise HTTPException(status_code=403, detail="Only Staff can view all users.")
+    return [_serialize_user(user) for user in users_controller.get_all_users()]
+
+
+@app.get("/users/{user_id}")
+def get_user_by_id(user_id: int):
+    user = users_controller.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _serialize_user(user)
+
+
+@app.post("/users")
+def create_user(payload: UserCreate):
+    requesting_user = _require_user(payload.requesting_user_id)
+    try:
+        data = payload.model_dump(exclude={"requesting_user_id"})
+        new_user = users_controller.create_user(requesting_user, data)
+        return _serialize_user(new_user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.put("/customers/{customer_id}")
-def update_customer(customer_id: int, customer: CustomerUpdate):
+
+@app.put("/users/{user_id}")
+def update_user(user_id: int, payload: UserUpdate):
     try:
-        updated_customer = controller.update_customer(customer_id, customer.model_dump(exclude_unset=True))
-        return _serialize(updated_customer)
+        updated_user = users_controller.update_user(user_id, payload.model_dump(exclude_unset=True))
+        return _serialize_user(updated_user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.delete("/customers/{customer_id}")
-def delete_customer(customer_id: int):
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
     try:
-        deleted = controller.delete_customer(customer_id)
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Customer not found")
-        return {"detail": "Customer deleted successfully"}
+        users_controller.delete_user(requesting_user, user_id)
+        return {"detail": "User deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/branches")
+def get_all_branches(requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    branches = branches_controller.get_all_branches(requesting_user)
+    return [_serialize_branch(branch) for branch in branches]
+
+
+@app.post("/branches")
+def create_branch(payload: BranchCreate):
+    requesting_user = _require_user(payload.requesting_user_id)
+    try:
+        data = payload.model_dump(exclude={"requesting_user_id"})
+        new_branch = branches_controller.create_branch(requesting_user, data)
+        return _serialize_branch(new_branch)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/branches/{branch_code}")
+def update_branch(branch_code: str, payload: BranchUpdate):
+    requesting_user = _require_user(payload.requesting_user_id)
+    try:
+        data = payload.model_dump(exclude={"requesting_user_id"}, exclude_unset=True)
+        updated_branch = branches_controller.update_branch(requesting_user, branch_code, data)
+        return _serialize_branch(updated_branch)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/branches/{branch_code}")
+def delete_branch(branch_code: str, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    try:
+        branches_controller.delete_branch(requesting_user, branch_code)
+        return {"detail": "Branch deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/accounts")
-def get_all_accounts():
-    accounts = accounts_controller.get_all_accounts()
+def get_all_accounts(owner_id: int):
+    accounts = accounts_controller.get_all_accounts(owner_id)
     return [_serialize_account(account) for account in accounts]
 
+
 @app.get("/accounts/{account_id}")
-def get_account_by_id(account_id: str):
-    account = accounts_controller.get_account_by_id(account_id)
+def get_account_by_id(account_id: str, owner_id: int):
+    account = accounts_controller.get_account_by_id(account_id, owner_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return _serialize_account(account)
 
+
 @app.post("/accounts")
-def create_account(account: AccountCreate):
+def create_account(payload: AccountCreate):
+    requesting_user = _require_user(payload.requesting_user_id)
     try:
-        new_account = accounts_controller.create_account(account.model_dump())
+        data = payload.model_dump(exclude={"requesting_user_id"})
+        new_account = accounts_controller.create_account(requesting_user, data)
         return _serialize_account(new_account)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.put("/accounts/{account_id}")
-def update_account(account_id: str, account: AccountUpdate):
+
+@app.post("/accounts/{account_id}/deposit")
+def deposit(account_id: str, payload: AmountRequest):
     try:
-        updated_account = accounts_controller.update_account(account_id, account.model_dump())
-        return _serialize_account(updated_account)
+        account, result = accounts_controller.deposit(account_id, payload.amount, payload.requesting_user_id)
+        return {"account": _serialize_account(account), "result": result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.delete("/accounts/{account_id}")
-def delete_account(account_id: str):
+
+@app.post("/accounts/{account_id}/withdraw")
+def withdraw(account_id: str, payload: AmountRequest):
     try:
-        deleted = accounts_controller.delete_account(account_id)
+        account, result = accounts_controller.withdraw(account_id, payload.amount, payload.requesting_user_id)
+        return {"account": _serialize_account(account), "result": result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/accounts/{account_id}/transactions")
+def get_transactions(account_id: str, owner_id: int):
+    account = accounts_controller.get_account_by_id(account_id, owner_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return account.get_transaction_history()
+
+
+@app.post("/accounts/{account_id}/deactivate")
+def deactivate_account(account_id: str, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    try:
+        account = accounts_controller.set_status(requesting_user, account_id, AccountStatus.INACTIVE)
+        return _serialize_account(account)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/accounts/{account_id}/reactivate")
+def reactivate_account(account_id: str, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    try:
+        account = accounts_controller.set_status(requesting_user, account_id, AccountStatus.ACTIVE)
+        return _serialize_account(account)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/accounts/{account_id}")
+def delete_account(account_id: str, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    try:
+        deleted = accounts_controller.delete_account(requesting_user, account_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Account not found")
         return {"detail": "Account deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @app.post("/accounts/transfer")
-def transfer_funds(transfer: AccountTransfer):
+def transfer_funds(payload: AccountTransfer):
     try:
-        accounts_controller.transfer_funds(transfer.from_account_id, transfer.to_account_id, transfer.amount)
-        return {"detail": "Transfer completed successfully"}
+        result = accounts_controller.transfer_funds(
+            payload.from_account_id, payload.to_account_id, payload.amount, payload.requesting_user_id
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
