@@ -27,8 +27,16 @@ class AccountsService:
         return AccountsRepository.get_all_accounts(owner_id=owner_id)
 
     @staticmethod
-    def get_account_by_id(account_id, owner_id=None):
-        return AccountsRepository.get_account_by_id(account_id, owner_id)
+    def get_account_by_id(requesting_user, account_id):
+        if requesting_user.get_role() == UserRole.CUSTOMER:
+            return AccountsRepository.get_account_by_id(account_id, requesting_user.get_user_id())
+        account = AccountsRepository.get_account_by_id(account_id)
+        if account is None:
+            return None
+        if requesting_user.get_role() in (UserRole.STAFF, UserRole.MANAGER):
+            if account.get_branch_code() != requesting_user.get_branch_code():
+                raise PermissionError("You can only view accounts in your own branch.")
+        return account
 
     @staticmethod
     def create_account(requesting_user, account_data):

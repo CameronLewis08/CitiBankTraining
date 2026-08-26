@@ -1,6 +1,8 @@
 import pytest
 
+from Models.Accounts import CheckingAccount
 from Models.Users import Users
+from Repos.AccountsRepo import AccountsRepository
 from Services.AccountsService import AccountsService
 from Utilities.Status import AccountStatus, UserRole
 
@@ -38,6 +40,22 @@ def test_set_status_allows_staff_to_reach_repo_layer():
     with pytest.raises(Exception) as exc_info:
         AccountsService.set_status(staff, "ACC-DOES-NOT-EXIST", AccountStatus.INACTIVE)
     assert not isinstance(exc_info.value, PermissionError)
+
+
+def test_get_account_by_id_rejects_staff_from_other_branch(monkeypatch):
+    # A Staff member's own branch_code differs from the target account's
+    # branch_code -> PermissionError, proving cross-branch account reads
+    # are blocked (mirrors the branch check in get_all_accounts). The Repo
+    # lookup itself is stubbed so this stays DB-free and exercises only the
+    # Service-layer branch comparison.
+    staff = make_user(UserRole.STAFF)  # branch_code="BR001"
+    other_branch_account = CheckingAccount("ACC-9001", 42, 100.0, "BR002")
+    monkeypatch.setattr(
+        AccountsRepository, "get_account_by_id",
+        staticmethod(lambda account_id, owner_id=None: other_branch_account),
+    )
+    with pytest.raises(PermissionError):
+        AccountsService.get_account_by_id(staff, "ACC-9001")
 
 
 def test_transfer_funds_allows_staff_to_bypass_ownership_check():

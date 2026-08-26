@@ -243,8 +243,9 @@ def get_all_accounts(requesting_user_id: int, owner_id: Optional[int] = None):
 
 
 @app.get("/accounts/{account_id}")
-def get_account_by_id(account_id: str, owner_id: int):
-    account = accounts_controller.get_account_by_id(account_id, owner_id)
+def get_account_by_id(account_id: str, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    account = accounts_controller.get_account_by_id(requesting_user, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return _serialize_account(account)
@@ -282,8 +283,9 @@ def withdraw(account_id: str, payload: AmountRequest):
 
 
 @app.get("/accounts/{account_id}/transactions")
-def get_transactions(account_id: str, owner_id: int):
-    account = accounts_controller.get_account_by_id(account_id, owner_id)
+def get_transactions(account_id: str, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    account = accounts_controller.get_account_by_id(requesting_user, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return account.get_transaction_history()

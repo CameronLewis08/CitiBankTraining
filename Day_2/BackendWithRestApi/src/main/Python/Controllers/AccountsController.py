@@ -13,8 +13,8 @@ class AccountsController:
     def get_all_accounts(self, requesting_user, owner_id=None):
         return self.accounts_service.get_all_accounts(requesting_user, owner_id)
 
-    def get_account_by_id(self, account_id, owner_id=None):
-        return self.accounts_service.get_account_by_id(account_id, owner_id)
+    def get_account_by_id(self, requesting_user, account_id):
+        return self.accounts_service.get_account_by_id(requesting_user, account_id)
 
     def create_account(self, requesting_user, account_data):
         return self.accounts_service.create_account(requesting_user, account_data)

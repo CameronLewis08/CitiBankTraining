@@ -99,7 +99,7 @@ def main():
     expect_error(
         "get account belonging to someone else returns None, not raise",
         lambda: (_ for _ in ()).throw(AssertionError("should not reach here"))
-        if accounts.get_account_by_id("ACC-2001", customer.get_user_id()) is not None
+        if accounts.get_account_by_id(customer, "ACC-2001") is not None
         else (_ for _ in ()).throw(ValueError("account correctly hidden from non-owner")),
     )
 
