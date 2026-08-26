@@ -30,6 +30,12 @@ def test_set_branch_code_rejects_customer():
         target.set_branch_code(customer, "BR002")
 
 
+def test_set_branch_code_rejects_customer_on_self():
+    customer = make_user(UserRole.CUSTOMER, user_id=1)
+    with pytest.raises(PermissionError):
+        customer.set_branch_code(customer, "BR999")
+
+
 def test_set_branch_code_allows_staff():
     staff = make_user(UserRole.STAFF, user_id=1)
     target = make_user(UserRole.STAFF, user_id=2)

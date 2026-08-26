@@ -235,8 +235,11 @@ def delete_branch(branch_code: str, requesting_user_id: int):
 @app.get("/accounts")
 def get_all_accounts(requesting_user_id: int, owner_id: Optional[int] = None):
     requesting_user = _require_user(requesting_user_id)
-    accounts = accounts_controller.get_all_accounts(requesting_user, owner_id)
-    return [_serialize_account(account) for account in accounts]
+    try:
+        accounts = accounts_controller.get_all_accounts(requesting_user, owner_id)
+        return [_serialize_account(account) for account in accounts]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/accounts/{account_id}")

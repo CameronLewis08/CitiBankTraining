@@ -38,3 +38,14 @@ def test_set_status_allows_staff_to_reach_repo_layer():
     with pytest.raises(Exception) as exc_info:
         AccountsService.set_status(staff, "ACC-DOES-NOT-EXIST", AccountStatus.INACTIVE)
     assert not isinstance(exc_info.value, PermissionError)
+
+
+def test_transfer_funds_allows_staff_to_bypass_ownership_check():
+    # Staff passes the role check and reaches the Repo layer unscoped by
+    # ownership; it will only fail once it tries to reach a real Mongo
+    # connection (or hits a nonexistent account), proving the bypass
+    # branch is reachable and doesn't itself raise PermissionError.
+    staff = make_user(UserRole.STAFF)
+    with pytest.raises(Exception) as exc_info:
+        AccountsService.transfer_funds(staff, "ACC-DOES-NOT-EXIST-A", "ACC-DOES-NOT-EXIST-B", 10.0)
+    assert not isinstance(exc_info.value, PermissionError)
