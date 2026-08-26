@@ -320,9 +320,10 @@ def delete_account(account_id: str, requesting_user_id: int):
 
 @app.post("/accounts/transfer")
 def transfer_funds(payload: AccountTransfer):
+    requesting_user = _require_user(payload.requesting_user_id)
     try:
         result = accounts_controller.transfer_funds(
-            payload.from_account_id, payload.to_account_id, payload.amount, payload.requesting_user_id
+            requesting_user, payload.from_account_id, payload.to_account_id, payload.amount
         )
         return result
     except ValueError as e:

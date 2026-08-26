@@ -59,7 +59,7 @@ class UsersRepository:
         return UsersRepository.get_user_by_id(user_data["user_id"])
 
     @staticmethod
-    def update_user(user_id: int, user_data: dict) -> Users:
+    def update_user(user_id: int, user_data: dict, requesting_user) -> Users:
         if not user_id:
             raise ValueError("User ID must be provided for update.")
         if not user_data:
@@ -76,13 +76,15 @@ class UsersRepository:
         if "email" in user_data:
             user.set_email(user_data["email"])
         if "branch_code" in user_data:
-            user.branch_code = user_data["branch_code"]
+            user.set_branch_code(requesting_user, user_data["branch_code"])
 
         collection = get_database().users
         try:
             collection.update_one({"user_id": user_id}, {"$set": user.to_dict()})
-        except DuplicateKeyError:
-            raise ValueError(f"User with email {user_data['email']} already exists.")
+        except DuplicateKeyError as e:
+            if "email" in e.details.get("keyPattern", {}):
+                raise ValueError(f"User with email {user_data['email']} already exists.")
+            raise ValueError("Update violates a uniqueness constraint.")
 
         return user
 

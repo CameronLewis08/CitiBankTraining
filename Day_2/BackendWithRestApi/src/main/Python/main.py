@@ -34,29 +34,29 @@ def main():
     print(f"Logged in as: {admin}, {manager}, {staff}, {customer}")
 
     print("\n--- Users ---")
-    print("All users:", [str(u) for u in users.get_all_users()])
+    print("All users:", [str(u) for u in users.get_all_users(admin)])
 
     print("\n--- Branches ---")
     print("All branches (as manager):", [str(b) for b in branches.get_all_branches(manager)])
 
     print("\n--- Accounts ---")
-    bob_accounts = accounts.get_all_accounts(customer.get_user_id())
+    bob_accounts = accounts.get_all_accounts(customer)
     print("Bob's accounts:", [str(a) for a in bob_accounts])
 
     print("\nDeposit 100 into ACC-1001:")
-    account, result = accounts.deposit("ACC-1001", 100.0, customer.get_user_id())
+    account, result = accounts.deposit(customer, "ACC-1001", 100.0)
     print(result, "new balance:", account.get_balance())
 
     print("\nWithdraw 200 from ACC-1001 (Checking, overdraft allowed):")
-    account, result = accounts.withdraw("ACC-1001", 2000.0, customer.get_user_id())
+    account, result = accounts.withdraw(customer, "ACC-1001", 2000.0)
     print(result, "new balance:", account.get_balance())
 
     print("\nTransfer 50 from ACC-1001 to ACC-1002:")
-    print(accounts.transfer_funds("ACC-1001", "ACC-1002", 50.0, customer.get_user_id()))
+    print(accounts.transfer_funds(customer, "ACC-1001", "ACC-1002", 50.0))
 
     print("\nDeactivate ACC-1002 (as staff), then try to deposit:")
     accounts.set_status(staff, "ACC-1002", AccountStatus.INACTIVE)
-    account, result = accounts.deposit("ACC-1002", 10.0)
+    account, result = accounts.deposit(staff, "ACC-1002", 10.0)
     print(result)
     accounts.set_status(staff, "ACC-1002", AccountStatus.ACTIVE)
 

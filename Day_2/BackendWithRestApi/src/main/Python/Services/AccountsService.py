@@ -5,6 +5,7 @@ Account Service for the Banking Domain REST API:
 """
 
 from Repos.AccountsRepo import AccountsRepository
+from Repos.UsersRepo import UsersRepository
 from Utilities.Status import UserRole, AccountStatus
 
 
@@ -16,6 +17,9 @@ class AccountsService:
         if requesting_user.get_role() in (UserRole.STAFF, UserRole.MANAGER):
             if owner_id is None:
                 return AccountsRepository.get_accounts_by_branch(requesting_user.get_branch_code())
+            target_user = UsersRepository.get_user_by_id(owner_id)
+            if target_user is None or target_user.get_branch_code() != requesting_user.get_branch_code():
+                raise PermissionError("You can only view accounts for customers in your own branch.")
             return AccountsRepository.get_all_accounts(owner_id=owner_id)
         # Admin
         if owner_id is None:
@@ -63,5 +67,7 @@ class AccountsService:
         return AccountsRepository.set_status(account_id, status)
 
     @staticmethod
-    def transfer_funds(from_account_id, to_account_id, amount, requesting_user_id=None):
-        return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount, requesting_user_id)
+    def transfer_funds(requesting_user, from_account_id, to_account_id, amount):
+        if requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
+            return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount)
+        return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount, requesting_user.get_user_id())

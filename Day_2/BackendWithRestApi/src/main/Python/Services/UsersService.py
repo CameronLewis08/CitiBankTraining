@@ -49,7 +49,7 @@ class UsersService:
         if not is_self:
             if requesting_user.get_role() not in (UserRole.ADMIN, UserRole.MANAGER):
                 raise PermissionError("Only the user themself, or an Admin/Manager, can update a user's profile.")
-        return UsersRepository.update_user(user_id, user_data)
+        return UsersRepository.update_user(user_id, user_data, requesting_user)
 
     @staticmethod
     def delete_user(requesting_user, user_id):

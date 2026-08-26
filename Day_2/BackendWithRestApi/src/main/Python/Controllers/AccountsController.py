@@ -31,5 +31,5 @@ class AccountsController:
     def set_status(self, requesting_user, account_id, status):
         return self.accounts_service.set_status(requesting_user, account_id, status)
 
-    def transfer_funds(self, from_account_id, to_account_id, amount, requesting_user_id=None):
-        return self.accounts_service.transfer_funds(from_account_id, to_account_id, amount, requesting_user_id)
+    def transfer_funds(self, requesting_user, from_account_id, to_account_id, amount):
+        return self.accounts_service.transfer_funds(requesting_user, from_account_id, to_account_id, amount)
