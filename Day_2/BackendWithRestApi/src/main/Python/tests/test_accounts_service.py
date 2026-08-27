@@ -5,6 +5,7 @@ import pytest
 from Models.Accounts import CheckingAccount
 from Models.Users import Users
 from Repos.AccountsRepo import AccountsRepository
+from Repos.UsersRepo import UsersRepository
 from Services.AccountsService import AccountsService
 from Utilities.Status import AccountStatus, UserRole
 
@@ -22,6 +23,9 @@ def test_create_account_allows_customer_to_open_for_self(monkeypatch):
         return "created"
 
     monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    # Non-empty so this isn't treated as a "first account" - that behavior
+    # has its own dedicated tests below; this one is only about owner_id.
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: ["existing"]))
     monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
 
     result = AccountsService.create_account(customer, {
@@ -41,6 +45,7 @@ def test_create_account_forces_owner_id_to_self_for_customer_even_if_spoofed(mon
         return "created"
 
     monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: ["existing"]))
     monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
 
     AccountsService.create_account(customer, {
@@ -59,6 +64,7 @@ def test_create_account_generates_hashed_account_id_when_missing(monkeypatch):
         return "created"
 
     monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: ["existing"]))
     monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
 
     AccountsService.create_account(customer, {
@@ -76,6 +82,7 @@ def test_create_account_keeps_provided_account_id_for_staff(monkeypatch):
         captured["data"] = account_data
         return "created"
 
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: ["existing"]))
     monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
 
     AccountsService.create_account(staff, {
@@ -85,6 +92,63 @@ def test_create_account_keeps_provided_account_id_for_staff(monkeypatch):
 
     assert captured["data"]["account_id"] == "ACC-1"
     assert captured["data"]["owner_id"] == 55
+
+
+def test_create_account_assigns_first_account_branch_to_customer_owner(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    created_account = CheckingAccount("ACC-1", 7, 100.0, "BR002")
+    captured = {}
+
+    monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: []))
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(lambda account_data: created_account))
+    monkeypatch.setattr(UsersRepository, "get_user_by_id", staticmethod(lambda user_id: customer))
+    monkeypatch.setattr(
+        UsersRepository, "assign_branch_code",
+        staticmethod(lambda user_id, branch_code: captured.update(user_id=user_id, branch_code=branch_code)),
+    )
+
+    AccountsService.create_account(customer, {
+        "balance": 100.0, "branch_code": "BR002", "account_type": "Checking",
+    })
+
+    assert captured == {"user_id": 7, "branch_code": "BR002"}
+
+
+def test_create_account_does_not_reassign_branch_when_not_first_account(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    created_account = CheckingAccount("ACC-2", 7, 100.0, "BR002")
+
+    monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: ["existing"]))
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(lambda account_data: created_account))
+    monkeypatch.setattr(UsersRepository, "get_user_by_id", staticmethod(lambda user_id: customer))
+    monkeypatch.setattr(
+        UsersRepository, "assign_branch_code",
+        staticmethod(lambda user_id, branch_code: pytest.fail("must not reassign branch on a repeat account")),
+    )
+
+    AccountsService.create_account(customer, {
+        "balance": 100.0, "branch_code": "BR002", "account_type": "Checking",
+    })
+
+
+def test_create_account_does_not_assign_branch_for_non_customer_owner(monkeypatch):
+    staff_owner = make_user(UserRole.STAFF, user_id=55)
+    admin_requester = make_user(UserRole.ADMIN, user_id=1)
+    created_account = CheckingAccount("ACC-3", 55, 100.0, "BR002")
+
+    monkeypatch.setattr(AccountsRepository, "get_all_accounts", staticmethod(lambda owner_id=None: []))
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(lambda account_data: created_account))
+    monkeypatch.setattr(UsersRepository, "get_user_by_id", staticmethod(lambda user_id: staff_owner))
+    monkeypatch.setattr(
+        UsersRepository, "assign_branch_code",
+        staticmethod(lambda user_id, branch_code: pytest.fail("must not assign a branch for a non-Customer owner")),
+    )
+
+    AccountsService.create_account(admin_requester, {
+        "owner_id": 55, "balance": 100.0, "branch_code": "BR002", "account_type": "Checking",
+    })
 
 
 def test_delete_account_rejects_customer():

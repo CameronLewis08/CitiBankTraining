@@ -13,20 +13,22 @@ from Utilities.Status import UserRole, AccountType, AccountStatus
 
 class AccountsService:
     @staticmethod
-    def get_all_accounts(requesting_user, owner_id=None):
+    def get_all_accounts(requesting_user, owner_id=None, skip=0, limit=None, search=None):
         if requesting_user.get_role() == UserRole.CUSTOMER:
-            return AccountsRepository.get_all_accounts(owner_id=requesting_user.get_user_id())
+            return AccountsRepository.get_all_accounts(
+                owner_id=requesting_user.get_user_id(), skip=skip, limit=limit, search=search)
         if requesting_user.get_role() in (UserRole.STAFF, UserRole.MANAGER):
             if owner_id is None:
-                return AccountsRepository.get_accounts_by_branch(requesting_user.get_branch_code())
+                return AccountsRepository.get_accounts_by_branch(
+                    requesting_user.get_branch_code(), skip=skip, limit=limit, search=search)
             target_user = UsersRepository.get_user_by_id(owner_id)
             if target_user is None or target_user.get_branch_code() != requesting_user.get_branch_code():
                 raise PermissionError("You can only view accounts for customers in your own branch.")
-            return AccountsRepository.get_all_accounts(owner_id=owner_id)
+            return AccountsRepository.get_all_accounts(owner_id=owner_id, skip=skip, limit=limit, search=search)
         # Admin
         if owner_id is None:
-            return AccountsRepository.get_all_accounts()
-        return AccountsRepository.get_all_accounts(owner_id=owner_id)
+            return AccountsRepository.get_all_accounts(skip=skip, limit=limit, search=search)
+        return AccountsRepository.get_all_accounts(owner_id=owner_id, skip=skip, limit=limit, search=search)
 
     @staticmethod
     def get_account_by_id(requesting_user, account_id):
@@ -52,7 +54,22 @@ class AccountsService:
         if not account_data.get("account_id"):
             account_data["account_id"] = AccountsService._generate_account_id()
 
-        return AccountsRepository.create_account(account_data)
+        owner_id = account_data.get("owner_id")
+        # Checked before creating the account, so this reflects whether it's
+        # the owner's *first* account, not whether they have zero now.
+        is_first_account = owner_id is not None and not AccountsRepository.get_all_accounts(owner_id=owner_id)
+
+        account = AccountsRepository.create_account(account_data)
+
+        if is_first_account:
+            owner = UsersRepository.get_user_by_id(owner_id)
+            # Only Customers get an auto-assigned home branch this way -
+            # Staff/Manager/Admin branches are an explicit Admin decision,
+            # never inferred from an account they happen to open.
+            if owner is not None and owner.get_role() == UserRole.CUSTOMER:
+                UsersRepository.assign_branch_code(owner_id, account.get_branch_code())
+
+        return account
 
     @staticmethod
     def _generate_account_id():

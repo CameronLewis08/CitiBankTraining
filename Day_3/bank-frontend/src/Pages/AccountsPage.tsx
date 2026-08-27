@@ -51,6 +51,11 @@ function OpenAccountForm({ customerId, onCreated }: OpenAccountFormProps) {
         account_type: accountType,
         branch_code: branchCode,
         balance,
+        // owner_id explicit: AccountsService.create_account only auto-fills
+        // it for role Customer, so an Admin/Manager/Staff opening an
+        // account for themselves here needs it sent - otherwise the
+        // backend has no owner to assign and rejects the request.
+        owner_id: customerId,
         requesting_user_id: customerId,
       })
       form.reset()
@@ -99,7 +104,10 @@ function OpenAccountForm({ customerId, onCreated }: OpenAccountFormProps) {
 
 function AccountsPage() {
   const { isLoggedIn, customer } = useAuth()
-  const { accounts, isLoading, error, refetch } = useAccounts(customer?.user_id)
+  // owner_id pinned to self, same reasoning as HomePage.tsx: this page is
+  // "your accounts," not the broader Admin/Manager view the backend would
+  // otherwise default to.
+  const { accounts, isLoading, error, refetch } = useAccounts(customer?.user_id, customer?.user_id)
 
   if (isLoggedIn && customer) {
     return (

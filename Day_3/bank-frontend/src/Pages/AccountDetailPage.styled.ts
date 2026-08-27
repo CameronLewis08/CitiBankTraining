@@ -1,4 +1,10 @@
 import styled from 'styled-components'
+import { DangerButton as BaseDangerButton } from '../Components/Modal/Modal.styled'
+
+export const CloseAccountButton = styled(BaseDangerButton)`
+  margin-top: 1.25rem;
+  width: 100%;
+`
 
 export const DetailGrid = styled.div`
   display: grid;

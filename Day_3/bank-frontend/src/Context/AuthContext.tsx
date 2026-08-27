@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { post } from '../api/client'
 
 // Matches the shape your FastAPI /login endpoint returns.
-type User = {
+export type User = {
   user_id: number
   name: string
   email: string
@@ -16,6 +16,7 @@ type AuthContextValue = {
   customer: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateCustomer: (updated: User) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -54,8 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCustomer(null)
   }
 
+  // Lets a page (e.g. ProfilePage after a successful PUT /users/{id}) push
+  // fresh data back into the shared session - the header, home page, etc.
+  // all read `customer` from here, so this is what keeps them in sync
+  // without every consumer re-fetching on its own.
+  function updateCustomer(updated: User) {
+    setCustomer(updated)
+  }
+
   return (
-    <AuthContext.Provider value={{ isLoggedIn: customer !== null, customer, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn: customer !== null, customer, login, logout, updateCustomer }}>
       {children}
     </AuthContext.Provider>
   )

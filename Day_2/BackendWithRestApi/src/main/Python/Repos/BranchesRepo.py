@@ -3,6 +3,8 @@ Branch Repository for the Banking Domain REST API:
     CRUD against the 'branches' MongoDB collection.
 """
 
+import re
+
 from Utilities.Database import get_database
 from Models.Branches import Branches
 from pymongo.errors import DuplicateKeyError
@@ -16,9 +18,19 @@ def _to_branch(doc) -> Branches:
 class BranchesRepository:
 
     @staticmethod
-    def get_all_branches() -> list:
+    def get_all_branches(skip=0, limit=None, search=None) -> list:
         collection = get_database().branches
-        return [_to_branch(doc) for doc in collection.find()]
+        query = {}
+        if search:
+            pattern = re.escape(search)
+            query["$or"] = [
+                {"branch_code": {"$regex": pattern, "$options": "i"}},
+                {"location": {"$regex": pattern, "$options": "i"}},
+            ]
+        cursor = collection.find(query).skip(skip)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        return [_to_branch(doc) for doc in cursor]
 
     @staticmethod
     def get_branch_by_code(branch_code: str) -> Branches:

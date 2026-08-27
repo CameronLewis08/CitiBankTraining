@@ -12,7 +12,7 @@ def make_user(role, user_id=1):
 
 def test_get_all_branches_allows_customer(monkeypatch):
     customer = make_user(UserRole.CUSTOMER)
-    monkeypatch.setattr(BranchesRepository, "get_all_branches", staticmethod(lambda: ["stub-branch"]))
+    monkeypatch.setattr(BranchesRepository, "get_all_branches", staticmethod(lambda skip=0, limit=None, search=None: ["stub-branch"]))
     assert BranchesService.get_all_branches(customer) == ["stub-branch"]
 
 

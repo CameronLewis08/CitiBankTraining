@@ -10,6 +10,7 @@ import ContactPage from './Pages/ContactPage'
 import LoginPage from './Pages/LoginPage'
 import TransferPage from './Pages/TransferPage'
 import AdminDashboardPage from './Pages/AdminDashboardPage'
+import ProfilePage from './Pages/ProfilePage'
 import NotFoundPage from './Pages/NotFoundPage'
 
 function App() {
@@ -42,6 +43,14 @@ function App() {
           element={
             <RequireAuth>
               <AdminDashboardPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <ProfilePage />
             </RequireAuth>
           }
         />

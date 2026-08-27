@@ -96,28 +96,3 @@ export const CtaButton = styled(Link)`
     box-shadow: var(--shadow);
   }
 `
-
-export const LogoutButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  text-decoration: none;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--accent-strong);
-  background: transparent;
-  border: 2px solid var(--accent-strong);
-  padding: calc(0.55rem - 2px) calc(1.2rem - 2px);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
-
-  &:hover {
-    background: var(--accent-strong);
-    color: #fff;
-    transform: translateY(-1px);
-    box-shadow: var(--shadow);
-  }
-`

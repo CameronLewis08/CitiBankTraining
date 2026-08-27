@@ -10,8 +10,8 @@ from Utilities.Status import UserRole
 
 class BranchesService:
     @staticmethod
-    def get_all_branches(requesting_user):
-        return BranchesRepository.get_all_branches()
+    def get_all_branches(requesting_user, skip=0, limit=None, search=None):
+        return BranchesRepository.get_all_branches(skip=skip, limit=limit, search=search)
 
     @staticmethod
     def get_branch_by_code(branch_code):

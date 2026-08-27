@@ -10,8 +10,8 @@ class AccountsController:
     def __init__(self):
         self.accounts_service = AccountsService()
 
-    def get_all_accounts(self, requesting_user, owner_id=None):
-        return self.accounts_service.get_all_accounts(requesting_user, owner_id)
+    def get_all_accounts(self, requesting_user, owner_id=None, skip=0, limit=None, search=None):
+        return self.accounts_service.get_all_accounts(requesting_user, owner_id, skip=skip, limit=limit, search=search)
 
     def get_account_by_id(self, requesting_user, account_id):
         return self.accounts_service.get_account_by_id(requesting_user, account_id)

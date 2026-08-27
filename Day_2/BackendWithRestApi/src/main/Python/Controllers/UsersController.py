@@ -11,11 +11,17 @@ class UsersController:
     def __init__(self):
         self.users_service = UsersService()
 
-    def get_all_users(self, requesting_user):
-        return self.users_service.get_all_users(requesting_user)
+    def get_all_users(self, requesting_user, skip=0, limit=None, search=None):
+        return self.users_service.get_all_users(requesting_user, skip=skip, limit=limit, search=search)
 
     def get_user_by_id(self, user_id):
         return self.users_service.get_user_by_id(user_id)
+
+    def get_users_by_ids(self, user_ids):
+        return self.users_service.get_users_by_ids(user_ids)
+
+    def view_user_profile(self, requesting_user, target_user_id):
+        return self.users_service.view_user_profile(requesting_user, target_user_id)
 
     def create_user(self, requesting_user, user_data):
         return self.users_service.create_user(requesting_user, user_data)

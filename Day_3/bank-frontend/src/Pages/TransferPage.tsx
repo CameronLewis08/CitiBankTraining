@@ -7,12 +7,16 @@ import { useAccounts } from '../hooks/accounts/useAccounts'
 import { formatCurrency } from '../data/accounts'
 import { post } from '../api/client'
 import { PageWrapper, PageTitle, PageSubtitle } from '../Components/PageHero/PageHero.styled'
-import { FormGroup, Label, SubmitButton, StatusMessage, ErrorMessage } from '../Components/Form/Form.styled'
+import { FormGroup, Label, Input, SubmitButton, StatusMessage, ErrorMessage } from '../Components/Form/Form.styled'
 import { TransferForm, Select, AmountField, CurrencyPrefix, AmountInput } from './TransferPage.styled'
 
 function TransferPage() {
   const { customer } = useAuth()
-  const { accounts, isLoading, error: loadError, refetch } = useAccounts(customer?.user_id)
+  // owner_id pinned to self, same reasoning as HomePage.tsx/AccountsPage.tsx:
+  // the From/To pickers should only ever list the logged-in user's own
+  // accounts, not the broader Admin/Manager view the backend would
+  // otherwise default to.
+  const { accounts, isLoading, error: loadError, refetch } = useAccounts(customer?.user_id, customer?.user_id)
   const [searchParams] = useSearchParams()
   const initialFrom = searchParams.get('from')
 
@@ -30,22 +34,14 @@ function TransferPage() {
     setFromId((current) => current || initialFrom || accounts[0].account_id)
   }, [accounts, initialFrom])
 
-  // Once "From" is known, default "To" to a different account.
-  useEffect(() => {
-    if (accounts.length === 0 || !fromId) return
-    setToId((current) => {
-      if (current && current !== fromId) return current
-      const fallback = accounts.find((account) => account.account_id !== fromId)
-      return fallback ? fallback.account_id : ''
-    })
-  }, [accounts, fromId])
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitted(false)
     setError('')
 
-    if (fromId === toId) {
+    const trimmedToId = toId.trim()
+
+    if (fromId === trimmedToId) {
       setError('From and To accounts must be different.')
       return
     }
@@ -56,7 +52,7 @@ function TransferPage() {
       await post('/accounts/transfer', {
         requesting_user_id: customer.user_id,
         from_account_id: fromId,
-        to_account_id: toId,
+        to_account_id: trimmedToId,
         amount: Number(amount),
       })
       setSubmitted(true)
@@ -71,7 +67,7 @@ function TransferPage() {
     <Layout>
       <PageWrapper>
         <PageTitle>Transfer Money</PageTitle>
-        <PageSubtitle>Move money between your accounts in seconds.</PageSubtitle>
+        <PageSubtitle>Move money between your accounts, or send to someone else's account ID.</PageSubtitle>
 
         {isLoading && <PageSubtitle>Loading your accounts…</PageSubtitle>}
         {loadError && <ErrorMessage role="alert">{loadError}</ErrorMessage>}
@@ -90,14 +86,16 @@ function TransferPage() {
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="toAccount">To account</Label>
-              <Select id="toAccount" name="toAccount" value={toId} onChange={(event) => setToId(event.target.value)} required>
-                {accounts.map((account) => (
-                  <option key={account.account_id} value={account.account_id}>
-                    {account.account_id} — {formatCurrency(account.balance)}
-                  </option>
-                ))}
-              </Select>
+              <Label htmlFor="toAccount">Recipient account ID</Label>
+              <Input
+                id="toAccount"
+                name="toAccount"
+                type="text"
+                placeholder="e.g. ACC-5d2171a3"
+                value={toId}
+                onChange={(event) => setToId(event.target.value)}
+                required
+              />
             </FormGroup>
 
             <FormGroup>

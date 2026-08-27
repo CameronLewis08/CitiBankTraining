@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import Layout from '../Components/Layout/Layout'
 import { useAuth } from '../Context/AuthContext'
 import { useAccountDetail } from '../hooks/accounts/useAccountDetail'
-import { post } from '../api/client'
+import { post, del } from '../api/client'
 import { formatCurrency } from '../data/accounts'
+import ConfirmModal from '../Components/Modal/ConfirmModal'
 import { PageWrapper, PageTitle, PageSubtitle } from '../Components/PageHero/PageHero.styled'
 import { Card, CardTitle } from '../Components/Card/Card.styled'
 import { SubmitButton, ErrorMessage } from '../Components/Form/Form.styled'
@@ -13,14 +14,33 @@ import {
   DetailGrid, SummaryList, SummaryLabel, SummaryValue,
   ActionForm, ActionRow, AmountField, CurrencyPrefix, AmountInput,
   TransactionList, TransactionRow, TransactionMeta, TransactionType, TransactionTimestamp, TransactionAmount,
+  CloseAccountButton,
 } from './AccountDetailPage.styled'
 
 function AccountDetailPage() {
   const { accountId } = useParams<{ accountId: string }>()
   const { customer } = useAuth()
+  const navigate = useNavigate()
   const { account, transactions, isLoading, error, refetch } = useAccountDetail(accountId, customer?.user_id)
   const [actionError, setActionError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isCloseModalOpen, setIsCloseModalOpen] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+  const [closeError, setCloseError] = useState<string | null>(null)
+
+  async function handleCloseAccount() {
+    if (!customer || !accountId) return
+
+    setIsClosing(true)
+    setCloseError(null)
+    try {
+      await del(`/accounts/${accountId}?requesting_user_id=${customer.user_id}`)
+      navigate('/accounts')
+    } catch (err) {
+      setCloseError(err instanceof Error ? err.message : 'Could not close this account.')
+      setIsClosing(false)
+    }
+  }
 
   async function handleAction(kind: 'deposit' | 'withdraw', event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -74,6 +94,9 @@ function AccountDetailPage() {
                 <SummaryLabel>Status</SummaryLabel>
                 <SummaryValue>{account.status}</SummaryValue>
               </SummaryList>
+              <CloseAccountButton type="button" onClick={() => setIsCloseModalOpen(true)}>
+                Close Account
+              </CloseAccountButton>
             </Card>
 
             <Card>
@@ -122,6 +145,22 @@ function AccountDetailPage() {
             </Card>
           </DetailGrid>
         )}
+
+        <ConfirmModal
+          open={isCloseModalOpen}
+          onClose={() => setIsCloseModalOpen(false)}
+          onConfirm={handleCloseAccount}
+          title="Close this account?"
+          message={
+            <>
+              This cannot be undone. Withdraw any remaining balance before closing —
+              once this account is closed, its funds and history are gone for good.
+            </>
+          }
+          confirmLabel="Close Account"
+          isConfirming={isClosing}
+          error={closeError}
+        />
       </PageWrapper>
     </Layout>
   )

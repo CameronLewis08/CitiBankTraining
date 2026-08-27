@@ -6,6 +6,8 @@ Account Repository for the Banking Domain REST API:
     history stay consistent.
 """
 
+import re
+
 from Utilities.Database import get_database
 from Models.Accounts import build_account
 from Utilities.Status import AccountType, AccountStatus
@@ -27,10 +29,44 @@ def _to_account(doc):
 class AccountsRepository:
 
     @staticmethod
-    def get_all_accounts(owner_id=None):
+    def _find_accounts(base_query, skip=0, limit=None, search=None):
+        # search needs the owner's name, which only lives on the users
+        # collection - a plain find() can't reach across collections, so
+        # the search path switches to an aggregation with a $lookup join.
+        # Non-search calls stay on plain find() (cheaper, no join) since
+        # that's the common case (every unpaginated caller in this repo).
         collection = get_database().accounts
-        query = {"owner_id": owner_id} if owner_id is not None else {}
-        return [_to_account(doc) for doc in collection.find(query)]
+        if search:
+            pattern = re.escape(search)
+            pipeline = [
+                {"$match": base_query},
+                {"$lookup": {
+                    "from": "users", "localField": "owner_id",
+                    "foreignField": "user_id", "as": "owner",
+                }},
+                {"$unwind": {"path": "$owner", "preserveNullAndEmptyArrays": True}},
+                {"$match": {"$or": [
+                    {"account_id": {"$regex": pattern, "$options": "i"}},
+                    {"branch_code": {"$regex": pattern, "$options": "i"}},
+                    {"account_type": {"$regex": pattern, "$options": "i"}},
+                    {"owner.name": {"$regex": pattern, "$options": "i"}},
+                ]}},
+            ]
+            if skip:
+                pipeline.append({"$skip": skip})
+            if limit is not None:
+                pipeline.append({"$limit": limit})
+            return [_to_account(doc) for doc in collection.aggregate(pipeline)]
+
+        cursor = collection.find(base_query).skip(skip)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        return [_to_account(doc) for doc in cursor]
+
+    @staticmethod
+    def get_all_accounts(owner_id=None, skip=0, limit=None, search=None):
+        base_query = {"owner_id": owner_id} if owner_id is not None else {}
+        return AccountsRepository._find_accounts(base_query, skip, limit, search)
 
     @staticmethod
     def get_account_by_id(account_id, owner_id=None):
@@ -47,9 +83,8 @@ class AccountsRepository:
         return _to_account(doc) if doc else None
 
     @staticmethod
-    def get_accounts_by_branch(branch_code):
-        collection = get_database().accounts
-        return [_to_account(doc) for doc in collection.find({"branch_code": branch_code})]
+    def get_accounts_by_branch(branch_code, skip=0, limit=None, search=None):
+        return AccountsRepository._find_accounts({"branch_code": branch_code}, skip, limit, search)
 
     @staticmethod
     def search_accounts_by_branch(branch_code, account_type=None, status=None):

@@ -127,10 +127,11 @@ def _serialize_branch(branch: Branches) -> dict:
     }
 
 
-def _serialize_account(account: Accounts) -> dict:
+def _serialize_account(account: Accounts, owner_name: Optional[str] = None) -> dict:
     return {
         "account_id": account.get_account_id(),
         "owner_id": account.get_owner_id(),
+        "owner_name": owner_name,
         "balance": account.get_balance(),
         "branch_code": account.get_branch_code(),
         "account_type": account.get_account_type().value,
@@ -148,14 +149,24 @@ def login(payload: LoginRequest):
 
 
 @app.get("/users")
-def get_all_users(requesting_user_id: int):
+def get_all_users(
+    requesting_user_id: int, skip: int = 0, limit: Optional[int] = None, search: Optional[str] = None,
+):
     requesting_user = _require_user(requesting_user_id)
-    return [_serialize_user(user) for user in users_controller.get_all_users(requesting_user)]
+    # Fetch one extra row beyond what's requested so the caller can tell
+    # whether another page exists (a full page back = more to load) without
+    # a separate count query or changing the response from a plain array.
+    fetch_limit = limit + 1 if limit is not None else None
+    users = users_controller.get_all_users(requesting_user, skip=skip, limit=fetch_limit, search=search)
+    if limit is not None:
+        users = users[:limit]
+    return [_serialize_user(user) for user in users]
 
 
 @app.get("/users/{user_id}")
-def get_user_by_id(user_id: int):
-    user = users_controller.get_user_by_id(user_id)
+def get_user_by_id(user_id: int, requesting_user_id: int):
+    requesting_user = _require_user(requesting_user_id)
+    user = users_controller.view_user_profile(requesting_user, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return _serialize_user(user)
@@ -196,9 +207,14 @@ def delete_user(user_id: int, requesting_user_id: int):
 
 
 @app.get("/branches")
-def get_all_branches(requesting_user_id: int):
+def get_all_branches(
+    requesting_user_id: int, skip: int = 0, limit: Optional[int] = None, search: Optional[str] = None,
+):
     requesting_user = _require_user(requesting_user_id)
-    branches = branches_controller.get_all_branches(requesting_user)
+    fetch_limit = limit + 1 if limit is not None else None
+    branches = branches_controller.get_all_branches(requesting_user, skip=skip, limit=fetch_limit, search=search)
+    if limit is not None:
+        branches = branches[:limit]
     return [_serialize_branch(branch) for branch in branches]
 
 
@@ -235,11 +251,30 @@ def delete_branch(branch_code: str, requesting_user_id: int):
 
 
 @app.get("/accounts")
-def get_all_accounts(requesting_user_id: int, owner_id: Optional[int] = None):
+def get_all_accounts(
+    requesting_user_id: int, owner_id: Optional[int] = None,
+    skip: int = 0, limit: Optional[int] = None, search: Optional[str] = None,
+):
     requesting_user = _require_user(requesting_user_id)
     try:
-        accounts = accounts_controller.get_all_accounts(requesting_user, owner_id)
-        return [_serialize_account(account) for account in accounts]
+        fetch_limit = limit + 1 if limit is not None else None
+        accounts = accounts_controller.get_all_accounts(
+            requesting_user, owner_id, skip=skip, limit=fetch_limit, search=search)
+        if limit is not None:
+            accounts = accounts[:limit]
+        # One batch lookup for the whole page's owner names, rather than a
+        # $lookup join per request or an N+1 fetch per account - the join
+        # cost stays flat as the total accounts/users collections grow,
+        # since it's bounded by page size, not table size.
+        owner_ids = {account.get_owner_id() for account in accounts}
+        owners_by_id = {
+            owner.get_user_id(): owner.get_name()
+            for owner in users_controller.get_users_by_ids(list(owner_ids))
+        }
+        return [
+            _serialize_account(account, owners_by_id.get(account.get_owner_id()))
+            for account in accounts
+        ]
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

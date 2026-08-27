@@ -32,3 +32,11 @@ def test_update_user_without_requesting_user_id_is_rejected():
 def test_get_accounts_requires_requesting_user_id():
     response = client.get("/accounts")
     assert response.status_code == 400
+
+
+def test_get_user_by_id_requires_requesting_user_id():
+    # Closes a user-enumeration gap: this route used to have no auth
+    # requirement at all, so any user_id (a small sequential int) could be
+    # scanned for a profile with no login. See UsersService.view_user_profile.
+    response = client.get("/users/1")
+    assert response.status_code == 400

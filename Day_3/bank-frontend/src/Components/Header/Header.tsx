@@ -1,8 +1,10 @@
 import { useAuth } from '../../Context/AuthContext'
-import { HeaderWrapper, HeaderInner, Logo, Nav, NavLink, CtaButton, LogoutButton } from './Header.styled'
+import UserMenu from '../UserMenu/UserMenu'
+import { HeaderWrapper, HeaderInner, Logo, Nav, NavLink, CtaButton } from './Header.styled'
 
 function Header() {
-  const { isLoggedIn, logout } = useAuth()
+  const { isLoggedIn, customer } = useAuth()
+  const canViewDashboard = isLoggedIn && customer?.role !== 'Customer'
 
   return (
     <HeaderWrapper>
@@ -13,15 +15,10 @@ function Header() {
             Home
           </NavLink>
           <NavLink to="/accounts">Accounts</NavLink>
+          {canViewDashboard && <NavLink to="/admin">Dashboard</NavLink>}
           <NavLink to="/about">About</NavLink>
           <NavLink to="/contact">Contact</NavLink>
-          {isLoggedIn ? (
-            <LogoutButton type="button" onClick={logout}>
-              Log Out
-            </LogoutButton>
-          ) : (
-            <CtaButton to="/login">Log In / Sign Up</CtaButton>
-          )}
+          {isLoggedIn ? <UserMenu /> : <CtaButton to="/login">Log In / Sign Up</CtaButton>}
         </Nav>
       </HeaderInner>
     </HeaderWrapper>

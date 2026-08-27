@@ -10,8 +10,8 @@ class BranchesController:
     def __init__(self):
         self.branches_service = BranchesService()
 
-    def get_all_branches(self, requesting_user):
-        return self.branches_service.get_all_branches(requesting_user)
+    def get_all_branches(self, requesting_user, skip=0, limit=None, search=None):
+        return self.branches_service.get_all_branches(requesting_user, skip=skip, limit=limit, search=search)
 
     def get_branch_by_code(self, branch_code):
         return self.branches_service.get_branch_by_code(branch_code)

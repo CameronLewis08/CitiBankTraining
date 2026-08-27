@@ -2,7 +2,7 @@ import Layout from '../Components/Layout/Layout'
 import { useAuth } from '../Context/AuthContext'
 import { useAccounts } from '../hooks/accounts/useAccounts'
 import { formatCurrency } from '../data/accounts'
-import { CardGrid, Card, CardLink, CardIcon, CardTitle, CardText, CardBalance } from '../Components/Card/Card.styled'
+import { CardGrid, Card, CardLink, CardIcon, CardTitle, CardText, CardMeta, CardBalance } from '../Components/Card/Card.styled'
 import { PrimaryButton, SecondaryButton } from '../Components/Button/Button.styled'
 import { ErrorMessage } from '../Components/Form/Form.styled'
 import { HomePageWrapper, Eyebrow, Title, Subtitle, ButtonRow } from './HomePage.styled'
@@ -27,13 +27,17 @@ const features = [
 
 function HomePage() {
   const { isLoggedIn, customer } = useAuth()
-  const { accounts, isLoading, error } = useAccounts(customer?.user_id)
+  // owner_id pinned to the logged-in user so the home page always shows
+  // "your accounts," even for Admin/Manager, who'd otherwise see every
+  // account or their whole branch's (AccountsService.get_all_accounts) -
+  // that broader view belongs on the Admin Dashboard, not here.
+  const { accounts, isLoading, error } = useAccounts(customer?.user_id, customer?.user_id)
 
   if (isLoggedIn) {
     return (
       <Layout>
         <HomePageWrapper>
-          <Eyebrow>Welcome back</Eyebrow>
+          <Eyebrow>Welcome back, {customer?.name}</Eyebrow>
           <Title>Your accounts</Title>
           <Subtitle>Here's a snapshot of your balances. View details or send a transfer below.</Subtitle>
           <ButtonRow>
@@ -47,6 +51,7 @@ function HomePage() {
               {accounts.map((account) => (
                 <CardLink key={account.account_id} to={`/accounts/${account.account_id}`}>
                   <CardTitle>{account.account_id}</CardTitle>
+                  <CardMeta>{account.account_type}</CardMeta>
                   <CardBalance>{formatCurrency(account.balance)}</CardBalance>
                 </CardLink>
               ))}
