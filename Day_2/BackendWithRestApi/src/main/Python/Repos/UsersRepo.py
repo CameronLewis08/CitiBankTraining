@@ -9,6 +9,7 @@ import re
 
 from Utilities.Database import get_database
 from Models.Users import Users
+from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 
@@ -43,6 +44,20 @@ class UsersRepository:
         collection = get_database().users
         doc = collection.find_one({"email": email})
         return _to_user(doc) if doc else None
+
+    @staticmethod
+    def get_next_user_id() -> int:
+        # Atomic Mongo-side counter (findOneAndUpdate + $inc), so concurrent
+        # signups can never be handed the same "next" ID - unlike computing
+        # max(existing_ids) + 1 in Python, which is a read-then-write race.
+        counters = get_database().counters
+        doc = counters.find_one_and_update(
+            {"_id": "user_id"},
+            {"$inc": {"seq": 1}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        return doc["seq"]
 
     @staticmethod
     def create_user(user_data: dict) -> Users:

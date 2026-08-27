@@ -25,14 +25,23 @@ class UsersService:
 
     @staticmethod
     def create_user(requesting_user, user_data):
-        if requesting_user.get_role() not in (UserRole.ADMIN, UserRole.MANAGER):
-            raise PermissionError("Only Admins and Managers can create users.")
-
         user_data = dict(user_data)
-        try:
-            UserRole(user_data.get("role"))
-        except ValueError:
-            raise ValueError(f"Invalid role: {user_data.get('role')!r}")
+
+        if requesting_user is None:
+            # Public self-signup: no permission check, and any role the
+            # caller tried to supply is overwritten - self-signup always
+            # produces a Customer, never a privileged role.
+            user_data["role"] = UserRole.CUSTOMER.value
+        else:
+            if requesting_user.get_role() not in (UserRole.ADMIN, UserRole.MANAGER):
+                raise PermissionError("Only Admins and Managers can create users.")
+            try:
+                UserRole(user_data.get("role"))
+            except ValueError:
+                raise ValueError(f"Invalid role: {user_data.get('role')!r}")
+
+        if not user_data.get("user_id"):
+            user_data["user_id"] = UsersRepository.get_next_user_id()
 
         password = user_data.pop("password", None)
         if password:

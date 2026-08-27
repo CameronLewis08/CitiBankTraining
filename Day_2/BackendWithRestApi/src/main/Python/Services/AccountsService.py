@@ -4,6 +4,8 @@ Account Service for the Banking Domain REST API:
     remove_account, checked before any Repo/Mongo call.
 """
 
+import secrets
+
 from Repos.AccountsRepo import AccountsRepository
 from Repos.UsersRepo import UsersRepository
 from Utilities.Status import UserRole, AccountType, AccountStatus
@@ -40,9 +42,25 @@ class AccountsService:
 
     @staticmethod
     def create_account(requesting_user, account_data):
-        if requesting_user.get_role() not in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
-            raise PermissionError("Only Admins, Managers, and Staff can create accounts.")
+        account_data = dict(account_data)
+
+        if requesting_user.get_role() == UserRole.CUSTOMER:
+            # Self-service: customers can only ever open accounts for
+            # themselves, regardless of what owner_id they send.
+            account_data["owner_id"] = requesting_user.get_user_id()
+
+        if not account_data.get("account_id"):
+            account_data["account_id"] = AccountsService._generate_account_id()
+
         return AccountsRepository.create_account(account_data)
+
+    @staticmethod
+    def _generate_account_id():
+        for _ in range(5):
+            candidate = f"ACC-{secrets.token_hex(4)}"
+            if AccountsRepository.get_account_by_id(candidate) is None:
+                return candidate
+        raise ValueError("Could not generate a unique account ID; please try again.")
 
     @staticmethod
     def deposit(requesting_user, account_id, amount):

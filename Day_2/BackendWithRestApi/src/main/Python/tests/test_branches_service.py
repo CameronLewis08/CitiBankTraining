@@ -1,6 +1,7 @@
 import pytest
 
 from Models.Users import Users
+from Repos.BranchesRepo import BranchesRepository
 from Services.BranchesService import BranchesService
 from Utilities.Status import UserRole
 
@@ -9,10 +10,10 @@ def make_user(role, user_id=1):
     return Users(user_id, "Test User", "test.user@example.com", role, branch_code="BR001")
 
 
-def test_get_all_branches_rejects_customer():
+def test_get_all_branches_allows_customer(monkeypatch):
     customer = make_user(UserRole.CUSTOMER)
-    with pytest.raises(PermissionError):
-        BranchesService.get_all_branches(customer)
+    monkeypatch.setattr(BranchesRepository, "get_all_branches", staticmethod(lambda: ["stub-branch"]))
+    assert BranchesService.get_all_branches(customer) == ["stub-branch"]
 
 
 def test_create_branch_rejects_manager():

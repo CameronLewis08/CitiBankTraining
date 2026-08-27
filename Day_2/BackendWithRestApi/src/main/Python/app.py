@@ -53,13 +53,13 @@ def _require_user(user_id: int) -> Users:
 
 
 class UserCreate(BaseModel):
-    user_id: int
     name: str
     email: str
-    role: str
+    user_id: Optional[int] = None
+    role: Optional[str] = None
     branch_code: Optional[str] = None
     password: Optional[str] = None
-    requesting_user_id: int
+    requesting_user_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
@@ -88,8 +88,8 @@ class BranchUpdate(BaseModel):
 
 
 class AccountCreate(BaseModel):
-    account_id: str
-    owner_id: int
+    account_id: Optional[str] = None
+    owner_id: Optional[int] = None
     balance: float
     branch_code: str
     account_type: str
@@ -163,9 +163,11 @@ def get_user_by_id(user_id: int):
 
 @app.post("/users")
 def create_user(payload: UserCreate):
-    requesting_user = _require_user(payload.requesting_user_id)
+    # requesting_user_id is optional here: omitting it is the public
+    # self-signup path (see UsersService.create_user), not an auth gap.
+    requesting_user = _require_user(payload.requesting_user_id) if payload.requesting_user_id is not None else None
     try:
-        data = payload.model_dump(exclude={"requesting_user_id"})
+        data = payload.model_dump(exclude={"requesting_user_id"}, exclude_none=True)
         new_user = users_controller.create_user(requesting_user, data)
         return _serialize_user(new_user)
     except ValueError as e:
@@ -255,7 +257,7 @@ def get_account_by_id(account_id: str, requesting_user_id: int):
 def create_account(payload: AccountCreate):
     requesting_user = _require_user(payload.requesting_user_id)
     try:
-        data = payload.model_dump(exclude={"requesting_user_id"})
+        data = payload.model_dump(exclude={"requesting_user_id"}, exclude_none=True)
         new_account = accounts_controller.create_account(requesting_user, data)
         return _serialize_account(new_account)
     except ValueError as e:

@@ -11,8 +11,6 @@ from Utilities.Status import UserRole
 class BranchesService:
     @staticmethod
     def get_all_branches(requesting_user):
-        if requesting_user.get_role() == UserRole.CUSTOMER:
-            raise PermissionError("Only Staff can view all branch codes.")
         return BranchesRepository.get_all_branches()
 
     @staticmethod

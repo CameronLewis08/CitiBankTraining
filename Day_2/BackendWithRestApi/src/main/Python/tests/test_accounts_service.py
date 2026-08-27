@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from Models.Accounts import CheckingAccount
@@ -11,13 +13,78 @@ def make_user(role, user_id=1):
     return Users(user_id, "Test User", "test.user@example.com", role, branch_code="BR001")
 
 
-def test_create_account_rejects_customer():
-    customer = make_user(UserRole.CUSTOMER)
-    with pytest.raises(PermissionError):
-        AccountsService.create_account(customer, {
-            "account_id": "ACC-1", "owner_id": 1, "balance": 100.0,
-            "branch_code": "BR001", "account_type": "Checking",
-        })
+def test_create_account_allows_customer_to_open_for_self(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    captured = {}
+
+    def fake_create_account(account_data):
+        captured["data"] = account_data
+        return "created"
+
+    monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
+
+    result = AccountsService.create_account(customer, {
+        "balance": 100.0, "branch_code": "BR001", "account_type": "Checking",
+    })
+
+    assert result == "created"
+    assert captured["data"]["owner_id"] == 7
+
+
+def test_create_account_forces_owner_id_to_self_for_customer_even_if_spoofed(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    captured = {}
+
+    def fake_create_account(account_data):
+        captured["data"] = account_data
+        return "created"
+
+    monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
+
+    AccountsService.create_account(customer, {
+        "owner_id": 999, "balance": 100.0, "branch_code": "BR001", "account_type": "Checking",
+    })
+
+    assert captured["data"]["owner_id"] == 7
+
+
+def test_create_account_generates_hashed_account_id_when_missing(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    captured = {}
+
+    def fake_create_account(account_data):
+        captured["data"] = account_data
+        return "created"
+
+    monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(lambda account_id, owner_id=None: None))
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
+
+    AccountsService.create_account(customer, {
+        "balance": 100.0, "branch_code": "BR001", "account_type": "Checking",
+    })
+
+    assert re.fullmatch(r"ACC-[0-9a-f]{8}", captured["data"]["account_id"])
+
+
+def test_create_account_keeps_provided_account_id_for_staff(monkeypatch):
+    staff = make_user(UserRole.STAFF, user_id=2)
+    captured = {}
+
+    def fake_create_account(account_data):
+        captured["data"] = account_data
+        return "created"
+
+    monkeypatch.setattr(AccountsRepository, "create_account", staticmethod(fake_create_account))
+
+    AccountsService.create_account(staff, {
+        "account_id": "ACC-1", "owner_id": 55, "balance": 100.0,
+        "branch_code": "BR001", "account_type": "Checking",
+    })
+
+    assert captured["data"]["account_id"] == "ACC-1"
+    assert captured["data"]["owner_id"] == 55
 
 
 def test_delete_account_rejects_customer():

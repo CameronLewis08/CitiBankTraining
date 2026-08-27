@@ -45,6 +45,18 @@ if __name__ == "__main__":
         users_collection.update_one({"user_id": user_doc["user_id"]}, {"$set": user_doc}, upsert=True)
     print(f"Seeded {len(SAMPLE_USERS)} users into MongoDB (password: '{SAMPLE_PASSWORD}').")
 
+    # Bump the user_id counter to at least the highest seeded ID, so the
+    # first auto-assigned signup ID (UsersRepository.get_next_user_id) can
+    # never collide with a seeded user. Only raises the counter, never
+    # lowers it, so re-running the seed script is safe.
+    counters_collection = get_database().counters
+    max_seeded_id = max(user["user_id"] for user in SAMPLE_USERS)
+    counters_collection.update_one(
+        {"_id": "user_id", "seq": {"$lt": max_seeded_id}},
+        {"$set": {"seq": max_seeded_id}},
+        upsert=True,
+    )
+
     branches_collection = get_database().branches
     for branch in SAMPLE_BRANCHES:
         branches_collection.update_one({"branch_code": branch["branch_code"]}, {"$set": branch}, upsert=True)
