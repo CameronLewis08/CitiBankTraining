@@ -5,12 +5,14 @@ REST API entry point for the Banking Domain application:
         uvicorn app:app --reload
 """
 
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from mangum import Mangum
 from pydantic import BaseModel
 
 from Controllers.UsersController import UsersController
@@ -28,7 +30,7 @@ accounts_controller = AccountsController()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[origin.strip() for origin in os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -425,3 +427,9 @@ def transfer_funds(payload: AccountTransfer):
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# Lambda entry point (API Gateway HTTP API -> Lambda proxy integration):
+# Mangum adapts this same FastAPI app to the Lambda event/response shape,
+# so local (uvicorn) and Lambda deployments run identical route code.
+handler = Mangum(app)

@@ -5,3 +5,4 @@ uvicorn
 pytest
 bcrypt
 httpx
+mangum
