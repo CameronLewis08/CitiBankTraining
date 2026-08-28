@@ -14,15 +14,16 @@ from Utilities.Status import UserRole
 
 class UsersService:
     @staticmethod
-    def get_all_users(requesting_user, skip=0, limit=None, search=None):
+    def get_all_users(requesting_user, skip=0, limit=None, search=None, role=None):
+        resolved_role = UserRole(role).value if role is not None else None
         if requesting_user.get_role() == UserRole.CUSTOMER:
             raise PermissionError("Only Staff can view all users.")
         if requesting_user.get_role() in (UserRole.MANAGER, UserRole.STAFF):
             # Branch-scoped, same as how AccountsService.get_all_accounts
             # already limits Manager/Staff to their own branch.
             return UsersRepository.search_users_by_branch(
-                requesting_user.get_branch_code(), skip=skip, limit=limit, search=search)
-        return UsersRepository.get_all_users(skip=skip, limit=limit, search=search)
+                requesting_user.get_branch_code(), role=resolved_role, skip=skip, limit=limit, search=search)
+        return UsersRepository.get_all_users(skip=skip, limit=limit, search=search, role=resolved_role)
 
     @staticmethod
     def get_user_by_id(user_id):

@@ -25,21 +25,22 @@ SAMPLE_USERS = [
     {"user_id": 3, "name": "Lee Park", "email": "mgr.lee@citibank.com", "role": "Manager", "branch_code": "BR002"},
     {"user_id": 4, "name": "Amy Staff", "email": "staff.amy@citibank.com", "role": "Staff", "branch_code": "BR001"},
     {"user_id": 5, "name": "Ravi Staff", "email": "staff.ravi@citibank.com", "role": "Staff", "branch_code": "BR002"},
-    {"user_id": 6, "name": "Bob Customer", "email": "bob.customer@example.com", "role": "Customer", "branch_code": "BR001"},
-    {"user_id": 7, "name": "Amy Customer", "email": "amy.customer@example.com", "role": "Customer", "branch_code": "BR002"},
+    {"user_id": 6, "name": "Jordan Staff", "email": "staff.jordan@citibank.com", "role": "Staff", "branch_code": "BR002"},
+    {"user_id": 7, "name": "Bob Customer", "email": "bob.customer@example.com", "role": "Customer", "branch_code": "BR001"},
+    {"user_id": 8, "name": "Amy Customer", "email": "amy.customer@example.com", "role": "Customer", "branch_code": "BR002"},
 ]
 
 SAMPLE_BRANCHES = [
     {"branch_code": "BR001", "location": "Downtown Chicago", "manager_id": 2, "staff_list": [4]},
-    {"branch_code": "BR002", "location": "Uptown Chicago", "manager_id": 3, "staff_list": [5]},
+    {"branch_code": "BR002", "location": "Uptown Chicago", "manager_id": 3, "staff_list": [5, 6]},
 ]
 
 SAMPLE_ACCOUNTS = [
-    {"account_id": "ACC-1001", "owner_id": 6, "balance": 1500.00, "branch_code": "BR001",
+    {"account_id": "ACC-1001", "owner_id": 7, "balance": 1500.00, "branch_code": "BR001",
      "account_type": "Checking", "status": "active", "transaction_history": []},
-    {"account_id": "ACC-1002", "owner_id": 6, "balance": 5000.00, "branch_code": "BR001",
+    {"account_id": "ACC-1002", "owner_id": 7, "balance": 5000.00, "branch_code": "BR001",
      "account_type": "Savings", "status": "active", "transaction_history": []},
-    {"account_id": "ACC-2001", "owner_id": 7, "balance": 750.00, "branch_code": "BR002",
+    {"account_id": "ACC-2001", "owner_id": 8, "balance": 750.00, "branch_code": "BR002",
      "account_type": "Checking", "status": "active", "transaction_history": []},
 ]
 

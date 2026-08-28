@@ -13,11 +13,12 @@ import Modal from '../Components/Modal/Modal'
 import ConfirmModal from '../Components/Modal/ConfirmModal'
 import { PageWrapper, PageTitle, PageSubtitle } from '../Components/PageHero/PageHero.styled'
 import { TableWrapper, Table, Thead, Tbody, Tr, Th, Td, EmptyRow } from '../Components/Table/Table.styled'
-import { FormGroup, Label, Input, SubmitButton, ErrorMessage } from '../Components/Form/Form.styled'
+import { FormGroup, Label, Input, Select, SubmitButton, ErrorMessage } from '../Components/Form/Form.styled'
 import { formatCurrency } from '../data/accounts'
 import { post, put, del } from '../api/client'
 import {
-  ControlsRow, SearchBar, ClickableTr, ActionsCell, RowActionButton, RowDeleteButton, NewBranchRow, LoadMoreRow,
+  ControlsRow, SearchBar, ClickableTr, ActionsCell, RowActionButton, RowDeleteButton,
+  NewBranchButton, LoadMoreRow, ModalFieldStack,
 } from './AdminDashboardPage.styled'
 import { ReadOnlyList, ReadOnlyLabel, ReadOnlyValue } from './ProfilePage.styled'
 
@@ -81,6 +82,13 @@ function AdminDashboardPage() {
     error: branchesError, refetch: refetchBranches, loadMore: loadMoreBranches,
   } = useBranches(requestingUserId, pageOptions)
 
+  // Full (unpaginated) list of Managers, for the branch create/edit
+  // "assign manager" dropdown - needs every Manager, not just whatever
+  // page/search happens to be active on the Users tab, so a manager can
+  // never be assigned by typing an ID that doesn't actually belong to one.
+  // Only Admins reach the branch modals, so this only fetches for Admins.
+  const { users: managers } = useUsers(isAdmin ? requestingUserId : undefined, { role: 'Manager' })
+
   // Delete User is Admin/Manager only, matching UsersService.delete_user.
   // Account status/delete have no extra role check here beyond the
   // dashboard's own isCustomer gate - Admin, Manager, and Staff can all
@@ -135,13 +143,25 @@ function AdminDashboardPage() {
 
   async function handleCreateBranch() {
     if (!customer) return
+
+    // The button stays clickable even with empty fields (rather than
+    // silently disabled) so a missing-field attempt gets an explicit
+    // message instead of just doing nothing.
+    const missing: string[] = []
+    if (!newBranchCode.trim()) missing.push('branch code')
+    if (!newBranchLocation.trim()) missing.push('location')
+    if (missing.length > 0) {
+      setCreateBranchError(`Missing required field${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}.`)
+      return
+    }
+
     setIsSubmittingBranch(true)
     setCreateBranchError(null)
     try {
       await post('/branches', {
         branch_code: newBranchCode.trim(),
         location: newBranchLocation.trim(),
-        manager_id: newBranchManagerId.trim() === '' ? null : Number(newBranchManagerId),
+        manager_id: newBranchManagerId === '' ? null : Number(newBranchManagerId),
         requesting_user_id: customer.user_id,
       })
       refetchBranches()
@@ -171,12 +191,18 @@ function AdminDashboardPage() {
 
   async function handleEditBranch() {
     if (!customer || !editingBranch) return
+
+    if (!editBranchLocation.trim()) {
+      setEditBranchError('Missing required field: location.')
+      return
+    }
+
     setIsSubmittingBranchEdit(true)
     setEditBranchError(null)
     try {
       await put(`/branches/${editingBranch.branch_code}`, {
         location: editBranchLocation.trim(),
-        manager_id: editBranchManagerId.trim() === '' ? null : Number(editBranchManagerId),
+        manager_id: editBranchManagerId === '' ? null : Number(editBranchManagerId),
         requesting_user_id: customer.user_id,
       })
       refetchBranches()
@@ -304,6 +330,12 @@ function AdminDashboardPage() {
                 options={viewOptions}
                 onChange={setView}
               />
+
+              {isAdmin && view === 'branches' && (
+                <NewBranchButton type="button" onClick={openCreateBranch}>
+                  New Branch
+                </NewBranchButton>
+              )}
             </ControlsRow>
 
             {isLoading && <PageSubtitle>Loading…</PageSubtitle>}
@@ -430,11 +462,6 @@ function AdminDashboardPage() {
 
             {!isLoading && !error && isAdmin && view === 'branches' && (
               <TableWrapper>
-                <NewBranchRow>
-                  <SubmitButton type="button" onClick={openCreateBranch}>
-                    New Branch
-                  </SubmitButton>
-                </NewBranchRow>
                 <Table>
                   <Thead>
                     <Tr>
@@ -551,71 +578,81 @@ function AdminDashboardPage() {
         </Modal>
 
         <Modal open={isCreatingBranch} onClose={() => setIsCreatingBranch(false)} title="New branch">
-          <FormGroup>
-            <Label htmlFor="new-branch-code">Branch code</Label>
-            <Input
-              id="new-branch-code"
-              value={newBranchCode}
-              onChange={(event) => setNewBranchCode(event.target.value)}
-              placeholder="e.g. BR003"
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label htmlFor="new-branch-location">Location</Label>
-            <Input
-              id="new-branch-location"
-              value={newBranchLocation}
-              onChange={(event) => setNewBranchLocation(event.target.value)}
-              placeholder="e.g. West Loop Chicago"
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label htmlFor="new-branch-manager">Manager ID (optional)</Label>
-            <Input
-              id="new-branch-manager"
-              type="number"
-              value={newBranchManagerId}
-              onChange={(event) => setNewBranchManagerId(event.target.value)}
-              placeholder="e.g. 2"
-            />
-          </FormGroup>
-          {createBranchError && <ErrorMessage role="alert">{createBranchError}</ErrorMessage>}
-          <SubmitButton
-            type="button"
-            disabled={isSubmittingBranch || !newBranchCode.trim() || !newBranchLocation.trim()}
-            onClick={handleCreateBranch}
-          >
-            {isSubmittingBranch ? 'Creating…' : 'Create branch'}
-          </SubmitButton>
+          <ModalFieldStack>
+            <FormGroup>
+              <Label htmlFor="new-branch-code">Branch code</Label>
+              <Input
+                id="new-branch-code"
+                value={newBranchCode}
+                onChange={(event) => setNewBranchCode(event.target.value)}
+                placeholder="e.g. BR003"
+              />
+            </FormGroup>
+            <FormGroup>
+              <Label htmlFor="new-branch-location">Location</Label>
+              <Input
+                id="new-branch-location"
+                value={newBranchLocation}
+                onChange={(event) => setNewBranchLocation(event.target.value)}
+                placeholder="e.g. West Loop Chicago"
+              />
+            </FormGroup>
+            <FormGroup>
+              <Label htmlFor="new-branch-manager">Manager (optional)</Label>
+              {/* A free-text ID let you assign a manager_id that doesn't
+                  belong to any actual Manager - constrained to a dropdown
+                  of real Managers instead, so every assignment is valid by
+                  construction. */}
+              <Select
+                id="new-branch-manager"
+                value={newBranchManagerId}
+                onChange={(event) => setNewBranchManagerId(event.target.value)}
+              >
+                <option value="">No manager assigned</option>
+                {managers.map((manager) => (
+                  <option key={manager.user_id} value={manager.user_id}>
+                    {manager.name} (#{manager.user_id})
+                  </option>
+                ))}
+              </Select>
+            </FormGroup>
+            {createBranchError && <ErrorMessage role="alert">{createBranchError}</ErrorMessage>}
+            <SubmitButton type="button" disabled={isSubmittingBranch} onClick={handleCreateBranch}>
+              {isSubmittingBranch ? 'Creating…' : 'Create branch'}
+            </SubmitButton>
+          </ModalFieldStack>
         </Modal>
 
         <Modal open={editingBranch !== null} onClose={() => setEditingBranch(null)} title={`Edit ${editingBranch?.branch_code ?? 'branch'}`}>
-          <FormGroup>
-            <Label htmlFor="edit-branch-location">Location</Label>
-            <Input
-              id="edit-branch-location"
-              value={editBranchLocation}
-              onChange={(event) => setEditBranchLocation(event.target.value)}
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label htmlFor="edit-branch-manager">Manager ID (optional)</Label>
-            <Input
-              id="edit-branch-manager"
-              type="number"
-              value={editBranchManagerId}
-              onChange={(event) => setEditBranchManagerId(event.target.value)}
-              placeholder="e.g. 2"
-            />
-          </FormGroup>
-          {editBranchError && <ErrorMessage role="alert">{editBranchError}</ErrorMessage>}
-          <SubmitButton
-            type="button"
-            disabled={isSubmittingBranchEdit || !editBranchLocation.trim()}
-            onClick={handleEditBranch}
-          >
-            {isSubmittingBranchEdit ? 'Saving…' : 'Save changes'}
-          </SubmitButton>
+          <ModalFieldStack>
+            <FormGroup>
+              <Label htmlFor="edit-branch-location">Location</Label>
+              <Input
+                id="edit-branch-location"
+                value={editBranchLocation}
+                onChange={(event) => setEditBranchLocation(event.target.value)}
+              />
+            </FormGroup>
+            <FormGroup>
+              <Label htmlFor="edit-branch-manager">Manager (optional)</Label>
+              <Select
+                id="edit-branch-manager"
+                value={editBranchManagerId}
+                onChange={(event) => setEditBranchManagerId(event.target.value)}
+              >
+                <option value="">No manager assigned</option>
+                {managers.map((manager) => (
+                  <option key={manager.user_id} value={manager.user_id}>
+                    {manager.name} (#{manager.user_id})
+                  </option>
+                ))}
+              </Select>
+            </FormGroup>
+            {editBranchError && <ErrorMessage role="alert">{editBranchError}</ErrorMessage>}
+            <SubmitButton type="button" disabled={isSubmittingBranchEdit} onClick={handleEditBranch}>
+              {isSubmittingBranchEdit ? 'Saving…' : 'Save changes'}
+            </SubmitButton>
+          </ModalFieldStack>
         </Modal>
 
         <ConfirmModal

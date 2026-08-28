@@ -11,8 +11,8 @@ class UsersController:
     def __init__(self):
         self.users_service = UsersService()
 
-    def get_all_users(self, requesting_user, skip=0, limit=None, search=None):
-        return self.users_service.get_all_users(requesting_user, skip=skip, limit=limit, search=search)
+    def get_all_users(self, requesting_user, skip=0, limit=None, search=None, role=None):
+        return self.users_service.get_all_users(requesting_user, skip=skip, limit=limit, search=search, role=role)
 
     def get_user_by_id(self, user_id):
         return self.users_service.get_user_by_id(user_id)

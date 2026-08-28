@@ -23,9 +23,11 @@ def _to_user(doc) -> Users:
 class UsersRepository:
 
     @staticmethod
-    def get_all_users(skip=0, limit=None, search=None) -> list:
+    def get_all_users(skip=0, limit=None, search=None, role=None) -> list:
         collection = get_database().users
         query = {}
+        if role:
+            query["role"] = role
         if search:
             pattern = re.escape(search)
             query["$or"] = [

@@ -15,6 +15,8 @@ function LoginPage() {
   const [mode, setMode] = useState<Mode>('login')
   const [error, setError] = useState('')
   const [signupError, setSignupError] = useState('')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [isSigningUp, setIsSigningUp] = useState(false)
   const { isLoggedIn, login } = useAuth()
   const navigate = useNavigate()
 
@@ -36,12 +38,15 @@ function LoginPage() {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
-  try 
+  setIsLoggingIn(true)
+  try
   {
     await login(email, password)
     navigate('/')
   } catch (err) {
     setError(err instanceof Error ? err.message : 'Something went wrong.')
+  } finally {
+    setIsLoggingIn(false)
   }
 }
 
@@ -60,6 +65,7 @@ async function handleSignup(event: FormEvent<HTMLFormElement>) {
     return
   }
 
+  setIsSigningUp(true)
   try {
     // No role/requesting_user_id: this is the public self-signup path,
     // which the backend always creates as a Customer.
@@ -68,6 +74,8 @@ async function handleSignup(event: FormEvent<HTMLFormElement>) {
     navigate('/')
   } catch (err) {
     setSignupError(err instanceof Error ? err.message : 'Something went wrong.')
+  } finally {
+    setIsSigningUp(false)
   }
 }
 
@@ -104,7 +112,9 @@ async function handleSignup(event: FormEvent<HTMLFormElement>) {
                   <Input id="login-password" name="password" type="password" autoComplete="current-password" required />
                 </FormGroup>
                 {error && <ErrorMessage role="alert">{error}</ErrorMessage>}
-                <SubmitButton type="submit">Log In</SubmitButton>
+                <SubmitButton type="submit" disabled={isLoggingIn}>
+                  {isLoggingIn ? 'Logging in…' : 'Log In'}
+                </SubmitButton>
               </AuthForm>
             </SlidePanel>
             <SlidePanel>
@@ -126,7 +136,9 @@ async function handleSignup(event: FormEvent<HTMLFormElement>) {
                   <Input id="signup-confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required />
                 </FormGroup>
                 {signupError && <ErrorMessage role="alert">{signupError}</ErrorMessage>}
-                <SubmitButton type="submit">Sign Up</SubmitButton>
+                <SubmitButton type="submit" disabled={isSigningUp}>
+                  {isSigningUp ? 'Signing up…' : 'Sign Up'}
+                </SubmitButton>
               </AuthForm>
             </SlidePanel>
           </SlideTrack>

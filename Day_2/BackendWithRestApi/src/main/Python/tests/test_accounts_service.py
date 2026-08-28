@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from Models.Accounts import CheckingAccount
+from Models.Accounts import CheckingAccount, SavingsAccount
 from Models.Users import Users
 from Repos.AccountsRepo import AccountsRepository
 from Repos.UsersRepo import UsersRepository
@@ -189,6 +189,21 @@ def test_get_account_by_id_rejects_staff_from_other_branch(monkeypatch):
         AccountsService.get_account_by_id(staff, "ACC-9001")
 
 
+def test_get_account_by_id_allows_staff_to_view_own_out_of_branch_account(monkeypatch):
+    # A Staff/Manager can open a personal account at any branch, same as a
+    # Customer - the branch-scope check above is only for viewing OTHER
+    # people's accounts, so it must not lock them out of their own account
+    # just because they opened it somewhere other than their home branch.
+    staff = make_user(UserRole.STAFF)  # user_id=1, branch_code="BR001"
+    own_out_of_branch_account = CheckingAccount("ACC-9002", 1, 100.0, "BR002")
+    monkeypatch.setattr(
+        AccountsRepository, "get_account_by_id",
+        staticmethod(lambda account_id, owner_id=None: own_out_of_branch_account),
+    )
+    result = AccountsService.get_account_by_id(staff, "ACC-9002")
+    assert result is own_out_of_branch_account
+
+
 def test_transfer_funds_allows_staff_to_bypass_ownership_check():
     # Staff passes the role check and reaches the Repo layer unscoped by
     # ownership; it will only fail once it tries to reach a real Mongo
@@ -198,6 +213,65 @@ def test_transfer_funds_allows_staff_to_bypass_ownership_check():
     with pytest.raises(Exception) as exc_info:
         AccountsService.transfer_funds(staff, "ACC-DOES-NOT-EXIST-A", "ACC-DOES-NOT-EXIST-B", 10.0)
     assert not isinstance(exc_info.value, PermissionError)
+
+
+def test_deposit_rejects_deactivated_own_account(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    inactive_account = CheckingAccount("ACC-1", 7, 100.0, "BR001", status=AccountStatus.INACTIVE)
+    monkeypatch.setattr(
+        AccountsRepository, "get_account_by_id",
+        staticmethod(lambda account_id, owner_id=None: inactive_account),
+    )
+    with pytest.raises(ValueError, match="deactivated"):
+        AccountsService.deposit(customer, "ACC-1", 50.0)
+
+
+def test_deposit_rejects_deactivated_account_for_privileged_role(monkeypatch):
+    # Admin/Manager/Staff bypass the ownership check but should still be
+    # blocked by the account's own deactivated status, not just customers.
+    staff = make_user(UserRole.STAFF)
+    inactive_account = CheckingAccount("ACC-1", 99, 100.0, "BR001", status=AccountStatus.INACTIVE)
+    monkeypatch.setattr(
+        AccountsRepository, "get_account_by_id",
+        staticmethod(lambda account_id, owner_id=None: inactive_account),
+    )
+    with pytest.raises(ValueError, match="deactivated"):
+        AccountsService.deposit(staff, "ACC-1", 50.0)
+
+
+def test_withdraw_rejects_deactivated_own_account(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    inactive_account = SavingsAccount("ACC-1", 7, 100.0, "BR001", status=AccountStatus.INACTIVE)
+    monkeypatch.setattr(
+        AccountsRepository, "get_account_by_id",
+        staticmethod(lambda account_id, owner_id=None: inactive_account),
+    )
+    with pytest.raises(ValueError, match="deactivated"):
+        AccountsService.withdraw(customer, "ACC-1", 50.0)
+
+
+def test_transfer_funds_rejects_deactivated_source_account(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    inactive_source = CheckingAccount("ACC-1", 7, 100.0, "BR001", status=AccountStatus.INACTIVE)
+    monkeypatch.setattr(
+        AccountsRepository, "get_account_by_id",
+        staticmethod(lambda account_id, owner_id=None: inactive_source),
+    )
+    with pytest.raises(ValueError, match="deactivated"):
+        AccountsService.transfer_funds(customer, "ACC-1", "ACC-2", 50.0)
+
+
+def test_transfer_funds_rejects_deactivated_target_account(monkeypatch):
+    customer = make_user(UserRole.CUSTOMER, user_id=7)
+    active_source = CheckingAccount("ACC-1", 7, 100.0, "BR001")
+    inactive_target = CheckingAccount("ACC-2", 8, 100.0, "BR001", status=AccountStatus.INACTIVE)
+
+    def fake_get_account_by_id(account_id, owner_id=None):
+        return active_source if account_id == "ACC-1" else inactive_target
+
+    monkeypatch.setattr(AccountsRepository, "get_account_by_id", staticmethod(fake_get_account_by_id))
+    with pytest.raises(ValueError, match="recipient account"):
+        AccountsService.transfer_funds(customer, "ACC-1", "ACC-2", 50.0)
 
 
 def test_search_accounts_by_branch_rejects_non_admin():

@@ -87,7 +87,10 @@ def test_get_all_users_scopes_manager_and_staff_to_own_branch(monkeypatch):
 
 def test_get_all_users_admin_sees_everyone(monkeypatch):
     admin = make_user(UserRole.ADMIN)
-    monkeypatch.setattr(UsersRepository, "get_all_users", staticmethod(lambda skip=0, limit=None, search=None: ["all-users"]))
+    monkeypatch.setattr(
+        UsersRepository, "get_all_users",
+        staticmethod(lambda skip=0, limit=None, search=None, role=None: ["all-users"]),
+    )
 
     result = UsersService.get_all_users(admin)
 

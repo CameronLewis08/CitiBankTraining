@@ -25,6 +25,7 @@ function TransferPage() {
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Once accounts have loaded, pick a starting "From" account: the one
   // passed in the URL (e.g. from the Accounts page's Transfer button) if
@@ -48,18 +49,33 @@ function TransferPage() {
 
     if (!customer) return
 
+    setIsSubmitting(true)
     try {
-      await post('/accounts/transfer', {
+      // A 200 here only means the request was well-formed, not that money
+      // actually moved - Accounts.transfer (Models/Accounts.py) returns
+      // {"status": "Failure", ...} with a normal 200 response on
+      // insufficient funds/inactive accounts rather than raising, the same
+      // way deposit/withdraw do (see AccountDetailPage's handleAction).
+      // Skipping this check was exactly why an over-the-balance transfer
+      // used to report success while the transaction history showed it
+      // never went through.
+      const result = await post<{ status: string }>('/accounts/transfer', {
         requesting_user_id: customer.user_id,
         from_account_id: fromId,
         to_account_id: trimmedToId,
         amount: Number(amount),
       })
+      if (result.status !== 'Success') {
+        setError('Transfer could not be completed — check the balance and try again.')
+        return
+      }
       setSubmitted(true)
       setAmount('')
       refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transfer failed.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -122,7 +138,9 @@ function TransferPage() {
               </ErrorMessage>
             )}
 
-            <SubmitButton type="submit">Transfer Funds</SubmitButton>
+            <SubmitButton type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Transferring…' : 'Transfer Funds'}
+            </SubmitButton>
 
             <StatusMessage role="status" aria-live="polite">
               {submitted ? 'Transfer completed successfully.' : ''}

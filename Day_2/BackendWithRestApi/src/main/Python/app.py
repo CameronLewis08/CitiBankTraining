@@ -150,17 +150,23 @@ def login(payload: LoginRequest):
 
 @app.get("/users")
 def get_all_users(
-    requesting_user_id: int, skip: int = 0, limit: Optional[int] = None, search: Optional[str] = None,
+    requesting_user_id: int, skip: int = 0, limit: Optional[int] = None,
+    search: Optional[str] = None, role: Optional[str] = None,
 ):
     requesting_user = _require_user(requesting_user_id)
-    # Fetch one extra row beyond what's requested so the caller can tell
-    # whether another page exists (a full page back = more to load) without
-    # a separate count query or changing the response from a plain array.
-    fetch_limit = limit + 1 if limit is not None else None
-    users = users_controller.get_all_users(requesting_user, skip=skip, limit=fetch_limit, search=search)
-    if limit is not None:
-        users = users[:limit]
-    return [_serialize_user(user) for user in users]
+    try:
+        # Fetch one extra row beyond what's requested so the caller can tell
+        # whether another page exists (a full page back = more to load)
+        # without a separate count query or changing the response from a
+        # plain array.
+        fetch_limit = limit + 1 if limit is not None else None
+        users = users_controller.get_all_users(
+            requesting_user, skip=skip, limit=fetch_limit, search=search, role=role)
+        if limit is not None:
+            users = users[:limit]
+        return [_serialize_user(user) for user in users]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/users/{user_id}")

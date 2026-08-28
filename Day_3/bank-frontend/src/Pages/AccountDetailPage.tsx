@@ -23,7 +23,11 @@ function AccountDetailPage() {
   const navigate = useNavigate()
   const { account, transactions, isLoading, error, refetch } = useAccountDetail(accountId, customer?.user_id)
   const [actionError, setActionError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  // Tracks which button is mid-request (not just a bare boolean) so only
+  // the one actually clicked swaps its label - deposit and withdraw share
+  // one account, so only one can ever be in flight at a time anyway, but
+  // the other button should still read "Deposit"/"Withdraw", not "Working…".
+  const [submittingAction, setSubmittingAction] = useState<'deposit' | 'withdraw' | null>(null)
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [closeError, setCloseError] = useState<string | null>(null)
@@ -52,7 +56,7 @@ function AccountDetailPage() {
 
     if (!customer || !accountId) return
 
-    setIsSubmitting(true)
+    setSubmittingAction(kind)
     try {
       const { result } = await post<{ result: { status: string } }>(`/accounts/${accountId}/${kind}`, {
         amount,
@@ -67,7 +71,7 @@ function AccountDetailPage() {
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
-      setIsSubmitting(false)
+      setSubmittingAction(null)
     }
   }
 
@@ -94,9 +98,16 @@ function AccountDetailPage() {
                 <SummaryLabel>Status</SummaryLabel>
                 <SummaryValue>{account.status}</SummaryValue>
               </SummaryList>
-              <CloseAccountButton type="button" onClick={() => setIsCloseModalOpen(true)}>
-                Close Account
-              </CloseAccountButton>
+              {/* Closing an account is Admin/Manager/Staff only
+                  (AccountsService.delete_account) - a Customer clicking
+                  this used to just hit a permission-denied error, since
+                  self-service closing was never actually allowed by the
+                  backend. */}
+              {customer?.role !== 'Customer' && (
+                <CloseAccountButton type="button" onClick={() => setIsCloseModalOpen(true)}>
+                  Close Account
+                </CloseAccountButton>
+              )}
             </Card>
 
             <Card>
@@ -107,14 +118,18 @@ function AccountDetailPage() {
                     <CurrencyPrefix aria-hidden="true">$</CurrencyPrefix>
                     <AmountInput name="amount" type="number" inputMode="decimal" min="0.01" step="0.01" required />
                   </AmountField>
-                  <SubmitButton type="submit" disabled={isSubmitting}>Deposit</SubmitButton>
+                  <SubmitButton type="submit" disabled={submittingAction !== null}>
+                    {submittingAction === 'deposit' ? 'Depositing…' : 'Deposit'}
+                  </SubmitButton>
                 </ActionForm>
                 <ActionForm onSubmit={(event) => handleAction('withdraw', event)}>
                   <AmountField>
                     <CurrencyPrefix aria-hidden="true">$</CurrencyPrefix>
                     <AmountInput name="amount" type="number" inputMode="decimal" min="0.01" step="0.01" required />
                   </AmountField>
-                  <SubmitButton type="submit" disabled={isSubmitting}>Withdraw</SubmitButton>
+                  <SubmitButton type="submit" disabled={submittingAction !== null}>
+                    {submittingAction === 'withdraw' ? 'Withdrawing…' : 'Withdraw'}
+                  </SubmitButton>
                 </ActionForm>
               </ActionRow>
               {actionError && <ErrorMessage role="alert">{actionError}</ErrorMessage>}

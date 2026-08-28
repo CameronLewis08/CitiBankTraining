@@ -11,6 +11,17 @@ from Repos.UsersRepo import UsersRepository
 from Utilities.Status import UserRole, AccountType, AccountStatus
 
 
+DEACTIVATED_ACCOUNT_ERROR = (
+    "You cannot perform this action due to your account being deactivated "
+    "or put on hold. Please contact the bank."
+)
+
+DEACTIVATED_RECIPIENT_ERROR = (
+    "The recipient account has been deactivated or put on hold and cannot "
+    "receive funds."
+)
+
+
 class AccountsService:
     @staticmethod
     def get_all_accounts(requesting_user, owner_id=None, skip=0, limit=None, search=None):
@@ -38,7 +49,15 @@ class AccountsService:
         if account is None:
             return None
         if requesting_user.get_role() in (UserRole.STAFF, UserRole.MANAGER):
-            if account.get_branch_code() != requesting_user.get_branch_code():
+            # A Staff/Manager can open a personal account at any branch (same
+            # as a Customer can), not just their own home branch - so the
+            # branch-scope check below is only for viewing OTHER people's
+            # accounts in an assisting-customers capacity. Applying it
+            # unconditionally used to lock a Staff/Manager out of their own
+            # account the moment they opened it somewhere other than their
+            # home branch.
+            is_own_account = account.get_owner_id() == requesting_user.get_user_id()
+            if not is_own_account and account.get_branch_code() != requesting_user.get_branch_code():
                 raise PermissionError("You can only view accounts in your own branch.")
         return account
 
@@ -81,21 +100,31 @@ class AccountsService:
 
     @staticmethod
     def deposit(requesting_user, account_id, amount):
-        if requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
-            return AccountsRepository.deposit(account_id, amount)
-        owned_account = AccountsRepository.get_account_by_id(account_id, requesting_user.get_user_id())
-        if owned_account is None:
+        is_privileged = requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+        owner_filter = None if is_privileged else requesting_user.get_user_id()
+        account = AccountsRepository.get_account_by_id(account_id, owner_filter)
+        if account is None:
+            if is_privileged:
+                # Let the Repo raise its own "account does not exist" error
+                # rather than duplicating that message here.
+                return AccountsRepository.deposit(account_id, amount)
             raise PermissionError("You do not have permission to deposit on this account.")
-        return AccountsRepository.deposit(account_id, amount, requesting_user.get_user_id())
+        if not account.is_active():
+            raise ValueError(DEACTIVATED_ACCOUNT_ERROR)
+        return AccountsRepository.deposit(account_id, amount, owner_filter)
 
     @staticmethod
     def withdraw(requesting_user, account_id, amount):
-        if requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
-            return AccountsRepository.withdraw(account_id, amount)
-        owned_account = AccountsRepository.get_account_by_id(account_id, requesting_user.get_user_id())
-        if owned_account is None:
+        is_privileged = requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+        owner_filter = None if is_privileged else requesting_user.get_user_id()
+        account = AccountsRepository.get_account_by_id(account_id, owner_filter)
+        if account is None:
+            if is_privileged:
+                return AccountsRepository.withdraw(account_id, amount)
             raise PermissionError("You do not have permission to withdraw on this account.")
-        return AccountsRepository.withdraw(account_id, amount, requesting_user.get_user_id())
+        if not account.is_active():
+            raise ValueError(DEACTIVATED_ACCOUNT_ERROR)
+        return AccountsRepository.withdraw(account_id, amount, owner_filter)
 
     @staticmethod
     def delete_account(requesting_user, account_id):
@@ -119,6 +148,27 @@ class AccountsService:
 
     @staticmethod
     def transfer_funds(requesting_user, from_account_id, to_account_id, amount):
-        if requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF):
-            return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount)
-        return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount, requesting_user.get_user_id())
+        is_privileged = requesting_user.get_role() in (UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+        owner_filter = None if is_privileged else requesting_user.get_user_id()
+
+        source_account = AccountsRepository.get_account_by_id(from_account_id, owner_filter)
+        if source_account is None:
+            if is_privileged:
+                # Let the Repo raise its own "account does not exist" error.
+                return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount)
+            raise PermissionError("You do not have permission to transfer from this account.")
+        if not source_account.is_active():
+            raise ValueError(DEACTIVATED_ACCOUNT_ERROR)
+
+        # Target visibility isn't restricted (transferring money INTO
+        # someone else's account is intentionally allowed - see
+        # AccountsRepository.transfer_funds), but a deactivated recipient
+        # still can't receive funds, same as the model-level check that
+        # already blocks this silently (Accounts.transfer's
+        # target_account.is_active() check) - this just gives it a message
+        # instead of a bare "Failure" result.
+        target_account = AccountsRepository.get_account_by_id(to_account_id)
+        if target_account is not None and not target_account.is_active():
+            raise ValueError(DEACTIVATED_RECIPIENT_ERROR)
+
+        return AccountsRepository.transfer_funds(from_account_id, to_account_id, amount, owner_filter)

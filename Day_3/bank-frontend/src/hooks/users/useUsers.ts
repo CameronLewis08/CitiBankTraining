@@ -17,10 +17,15 @@ type PaginationOptions = {
   // show up, are unaffected.
   limit?: number
   search?: string
+  // Server-side role filter (e.g. 'Manager') - also omit `limit` when using
+  // this to get the complete matching set in one shot, for cases like
+  // populating a "pick a manager" dropdown where a partial page would be
+  // actively wrong, not just incomplete.
+  role?: User['role']
 }
 
 export function useUsers(requestingUserId: number | undefined, options?: PaginationOptions) {
-  const { limit, search } = options ?? {}
+  const { limit, search, role } = options ?? {}
 
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -30,7 +35,7 @@ export function useUsers(requestingUserId: number | undefined, options?: Paginat
   const [reloadKey, setReloadKey] = useState(0)
   const [skip, setSkip] = useState(0)
 
-  const queryKey = `${requestingUserId}|${search ?? ''}|${reloadKey}`
+  const queryKey = `${requestingUserId}|${search ?? ''}|${role ?? ''}|${reloadKey}`
   const [lastQueryKey, setLastQueryKey] = useState(queryKey)
   if (queryKey !== lastQueryKey) {
     setLastQueryKey(queryKey)
@@ -51,6 +56,7 @@ export function useUsers(requestingUserId: number | undefined, options?: Paginat
     const params = new URLSearchParams({ requesting_user_id: String(requestingUserId) })
     if (limit !== undefined) params.set('limit', String(limit))
     if (search) params.set('search', search)
+    if (role) params.set('role', role)
     if (skip) params.set('skip', String(skip))
 
     get<User[]>(`/users?${params.toString()}`)
@@ -72,7 +78,7 @@ export function useUsers(requestingUserId: number | undefined, options?: Paginat
     return () => {
       cancelled = true
     }
-  }, [requestingUserId, limit, search, skip, reloadKey])
+  }, [requestingUserId, limit, search, role, skip, reloadKey])
 
   function refetch() {
     setReloadKey((key) => key + 1)
