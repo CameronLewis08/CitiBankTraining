@@ -139,6 +139,18 @@ class UsersRepository:
         collection.update_one({"user_id": user_id}, {"$set": {"branch_code": branch_code}})
 
     @staticmethod
+    def clear_branch_code_by_branch(branch_code: str) -> int:
+        # Cascade for BranchesService.delete_branch: same bypass-the-model
+        # rationale as assign_branch_code (this is a system-derived side
+        # effect of the branch disappearing, not a user-initiated edit), so
+        # it skips Users.set_branch_code's permission check and its
+        # "branch code cannot be empty" guard - going back to None is
+        # exactly the pre-first-account state a brand-new user starts in.
+        collection = get_database().users
+        result = collection.update_many({"branch_code": branch_code}, {"$set": {"branch_code": None}})
+        return result.modified_count
+
+    @staticmethod
     def search_users_by_branch(branch_code, role=None, name=None, skip=0, limit=None, search=None) -> list:
         query = {"branch_code": branch_code}
         if role is not None:

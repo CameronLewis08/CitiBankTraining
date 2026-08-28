@@ -6,7 +6,6 @@ import HomePage from './Pages/HomePage'
 import AccountsPage from './Pages/AccountsPage'
 import AccountDetailPage from './Pages/AccountDetailPage'
 import AboutPage from './Pages/AboutPage'
-import ContactPage from './Pages/ContactPage'
 import LoginPage from './Pages/LoginPage'
 import TransferPage from './Pages/TransferPage'
 import AdminDashboardPage from './Pages/AdminDashboardPage'
@@ -28,7 +27,6 @@ function App() {
           }
         />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route
           path="/transfer"

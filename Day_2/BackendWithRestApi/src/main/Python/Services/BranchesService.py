@@ -4,7 +4,9 @@ Branch Service for the Banking Domain REST API:
     get_branch_codes, checked before any Repo/Mongo call.
 """
 
+from Repos.AccountsRepo import AccountsRepository
 from Repos.BranchesRepo import BranchesRepository
+from Repos.UsersRepo import UsersRepository
 from Utilities.Status import UserRole
 
 
@@ -33,4 +35,11 @@ class BranchesService:
     def delete_branch(requesting_user, branch_code):
         if requesting_user.get_role() != UserRole.ADMIN:
             raise PermissionError("Only Admins can remove branches.")
+        # Cascade before removing the branch itself: accounts can't exist
+        # without a branch, so they're deleted outright; users just have
+        # their branch_code cleared back to None (the same "no home branch
+        # yet" state a brand-new user starts in) rather than being deleted
+        # or reassigned.
+        AccountsRepository.delete_accounts_by_branch(branch_code)
+        UsersRepository.clear_branch_code_by_branch(branch_code)
         return BranchesRepository.delete_branch(branch_code)

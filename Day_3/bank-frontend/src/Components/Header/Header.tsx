@@ -17,7 +17,6 @@ function Header() {
           <NavLink to="/accounts">Accounts</NavLink>
           {canViewDashboard && <NavLink to="/admin">Dashboard</NavLink>}
           <NavLink to="/about">About</NavLink>
-          <NavLink to="/contact">Contact</NavLink>
           {isLoggedIn ? <UserMenu /> : <CtaButton to="/login">Log In / Sign Up</CtaButton>}
         </Nav>
       </HeaderInner>

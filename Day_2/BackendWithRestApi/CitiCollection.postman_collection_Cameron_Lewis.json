@@ -2,521 +2,539 @@
   "info": {
     "_postman_id": "1d38041d-d0aa-45e9-8329-48b1473b3ec6",
     "name": "CitiCollection",
+    "description": "Banking Domain REST API (Day_2/BackendWithRestApi). Role-based Users/Branches/Accounts domain over MongoDB - see the repo's README.md for the seeded accounts this collection's examples assume (Admin user_id=1, Bob Customer user_id=7 @ BR001, Amy Customer user_id=8 @ BR002).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "51685317"
   },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    }
+  ],
   "item": [
     {
-      "name": "Get_All_Customers",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Get_Customer_by_ID_Valid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers/1",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers",
-            "1"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Post_Customer_invalid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \"customer_id\": 1,\r\n    \"name\": \"Cam\",\r\n    \"email\": \"Camdam827@icloud.com\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@citibank.com\",\n    \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Post_Customer_Valid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \"customer_id\": 4,\r\n    \"name\": \"Cam\",\r\n    \"email\": \"Camdam827@icloud.com\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Login - Invalid Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@citibank.com\",\n    \"password\": \"wrong-password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
             }
-          }
-        },
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers"
-          ]
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     },
     {
-      "name": "Get_Customer_by_ID_Invalid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers/5",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers",
-            "5"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Put_Updated_Customer",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "PUT",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \"customer_id\": 1,\r\n    \"name\": \"Updated\",\r\n    \"email\": \"Updated@gmail.com\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users?requesting_user_id=1&skip=0&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "requesting_user_id", "value": "1", "description": "Required - resolves who's asking; scopes the result (Admin sees all, Manager/Staff their own branch, Customer 403s)" },
+                { "key": "skip", "value": "0", "description": "Optional - pagination offset" },
+                { "key": "limit", "value": "25", "description": "Optional - page size; omit to fetch everything" },
+                { "key": "search", "value": "", "description": "Optional - matches name/email/branch_code", "disabled": true },
+                { "key": "role", "value": "", "description": "Optional - Admin, Manager, Staff, or Customer", "disabled": true }
+              ]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers/1",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers",
-            "1"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Put_Updated_Customer_Missing_Fields",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "PUT",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Get User by ID - Valid",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/7?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["users", "7"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers/1",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers",
-            "1"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Delete_Customer",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "DELETE",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Get User by ID - Not Found",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/999?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["users", "999"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/customers/4",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "customers",
-            "4"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Get_All_Accounts",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Get_Account_by_ID_Valid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts/ACC-1001",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts",
-            "ACC-1001"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Post_Accounts_Valid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \"account_id\": \"ACC-1005\",\r\n    \"customer_id\": 1,\r\n    \"balance\": 200.0\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Create User - Public Self-Signup",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Cam\",\n    \"email\": \"cam@example.com\",\n    \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts"
-          ]
+        {
+          "name": "Create User - Admin Creates Staff",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"New Staff\",\n    \"email\": \"new.staff@citibank.com\",\n    \"password\": \"password123\",\n    \"role\": \"Staff\",\n    \"branch_code\": \"BR001\",\n    \"requesting_user_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User - Name/Email",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Bobby Customer\",\n    \"email\": \"bob.customer@example.com\",\n    \"requesting_user_id\": 7\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/7",
+              "host": ["{{base_url}}"],
+              "path": ["users", "7"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User - Branch Code (Admin only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"branch_code\": \"BR002\",\n    \"requesting_user_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/7",
+              "host": ["{{base_url}}"],
+              "path": ["users", "7"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update User - Missing requesting_user_id (400)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"No Requester\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/users/7",
+              "host": ["{{base_url}}"],
+              "path": ["users", "7"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/999?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["users", "999"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
+            }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     },
     {
-      "name": "Post_Accounts_inValid",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \"account_id\": \"ACC-1005\",\r\n    \"customer_id\": 1,\r\n    \"balance\": 200.0\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+      "name": "Branches",
+      "item": [
+        {
+          "name": "Get All Branches",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/branches?requesting_user_id=1&skip=0&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["branches"],
+              "query": [
+                { "key": "requesting_user_id", "value": "1", "description": "Required" },
+                { "key": "skip", "value": "0", "description": "Optional" },
+                { "key": "limit", "value": "25", "description": "Optional - page size; omit to fetch everything" },
+                { "key": "search", "value": "", "description": "Optional - matches branch_code/location", "disabled": true }
+              ]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts"
-          ]
+        {
+          "name": "Create Branch (Admin only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"branch_code\": \"BR003\",\n    \"location\": \"West Loop Chicago\",\n    \"manager_id\": 2,\n    \"requesting_user_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/branches",
+              "host": ["{{base_url}}"],
+              "path": ["branches"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Branch (Admin only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"location\": \"Downtown Chicago (Updated)\",\n    \"manager_id\": 2,\n    \"requesting_user_id\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/branches/BR001",
+              "host": ["{{base_url}}"],
+              "path": ["branches", "BR001"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Branch (Admin only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/branches/BR003?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["branches", "BR003"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Accounts by Branch (Admin only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/branches/BR001/accounts?requesting_user_id=1&account_type=Checking&status=active",
+              "host": ["{{base_url}}"],
+              "path": ["branches", "BR001", "accounts"],
+              "query": [
+                { "key": "requesting_user_id", "value": "1" },
+                { "key": "account_type", "value": "Checking", "description": "Optional - Checking or Savings" },
+                { "key": "status", "value": "active", "description": "Optional - active or inactive" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Users by Branch (Admin only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/branches/BR001/users?requesting_user_id=1&role=Staff",
+              "host": ["{{base_url}}"],
+              "path": ["branches", "BR001", "users"],
+              "query": [
+                { "key": "requesting_user_id", "value": "1" },
+                { "key": "role", "value": "Staff", "description": "Optional" },
+                { "key": "name", "value": "", "description": "Optional - case-insensitive partial match", "disabled": true }
+              ]
+            }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     },
     {
-      "name": "Get_Account_by_ID_Invalid",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "GET",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "",
-          "options": {
-            "raw": {
-              "language": "json"
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Get All Accounts",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts?requesting_user_id=1&skip=0&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["accounts"],
+              "query": [
+                { "key": "requesting_user_id", "value": "1", "description": "Required - scopes the result by role" },
+                { "key": "owner_id", "value": "", "description": "Optional - pin results to one owner", "disabled": true },
+                { "key": "skip", "value": "0", "description": "Optional" },
+                { "key": "limit", "value": "25", "description": "Optional - page size; omit to fetch everything" },
+                { "key": "search", "value": "", "description": "Optional - matches account_id/branch_code/account_type/owner name", "disabled": true }
+              ]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts/5",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts",
-            "5"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Put_Updated_Account",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "PUT",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \"account_id\": \"ACC-1001\",\r\n    \"customer_id\": 1,\r\n    \"balance\": 200.0\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Get Account by ID - Valid",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001?requesting_user_id=7",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001"],
+              "query": [{ "key": "requesting_user_id", "value": "7" }]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts/ACC-1001",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts",
-            "ACC-1001"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Put_Updated_Account_Missing_Fields",
-      "request": {
-        "auth": {
-          "type": "noauth"
-        },
-        "method": "PUT",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n    \r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Get Account by ID - Not Found",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-DOES-NOT-EXIST?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-DOES-NOT-EXIST"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts/ACC-1001",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts",
-            "ACC-1001"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Delete_Account",
-      "request": {
-        "auth": {
-          "type": "noauth"
+        {
+          "name": "Create Account",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"owner_id\": 7,\n    \"balance\": 200.0,\n    \"branch_code\": \"BR001\",\n    \"account_type\": \"Checking\",\n    \"requesting_user_id\": 7\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts",
+              "host": ["{{base_url}}"],
+              "path": ["accounts"]
+            },
+            "description": "account_id is optional - omit it to have the backend generate one (ACC-xxxxxxxx). A Customer's owner_id is always forced to themself regardless of what's sent here."
+          },
+          "response": []
         },
-        "method": "DELETE",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "",
-          "options": {
-            "raw": {
-              "language": "json"
+        {
+          "name": "Deposit",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 50.0,\n    \"requesting_user_id\": 7\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001/deposit",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001", "deposit"]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "http://127.0.0.1:8000/accounts/ACC-1001",
-          "protocol": "http",
-          "host": [
-            "127",
-            "0",
-            "0",
-            "1"
-          ],
-          "port": "8000",
-          "path": [
-            "accounts",
-            "ACC-1001"
-          ]
+        {
+          "name": "Withdraw",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 25.0,\n    \"requesting_user_id\": 7\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001/withdraw",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001", "withdraw"]
+            },
+            "description": "A 200 response only means the request was well-formed - check the response body's result.status ('Success' vs 'Failure'); overdraft/insufficient-funds/deactivated-account failures don't raise, they return Failure with a normal 200."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account Transactions",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001/transactions?requesting_user_id=7",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001", "transactions"],
+              "query": [{ "key": "requesting_user_id", "value": "7" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deactivate Account",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001/deactivate?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001", "deactivate"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
+            },
+            "description": "requesting_user_id is a query param here, not a body field - there's no Pydantic body model on this route."
+          },
+          "response": []
+        },
+        {
+          "name": "Reactivate Account",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001/reactivate?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001", "reactivate"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfer Funds",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"requesting_user_id\": 7,\n    \"from_account_id\": \"ACC-1001\",\n    \"to_account_id\": \"ACC-2001\",\n    \"amount\": 25.0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/transfer",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "transfer"]
+            },
+            "description": "Recipient can be anyone's account - only the source account is ownership-checked. Check the response's status field the same way as Withdraw."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account (Close Account)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/ACC-1001?requesting_user_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "ACC-1001"],
+              "query": [{ "key": "requesting_user_id", "value": "1" }]
+            },
+            "description": "Admin/Manager/Staff only - a Customer sending this gets a 403 (Close Account is hidden from Customers in the frontend for this reason)."
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     }
   ]
 }

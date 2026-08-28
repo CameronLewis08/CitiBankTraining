@@ -15,7 +15,11 @@ from Utilities.Status import UserRole
 class UsersService:
     @staticmethod
     def get_all_users(requesting_user, skip=0, limit=None, search=None, role=None):
-        resolved_role = UserRole(role).value if role is not None else None
+        # Truthy check, not `is not None` - an empty-string query param
+        # (?role=, which a client can send without meaning to) should be
+        # treated the same as omitting it, not passed to UserRole() and
+        # blown up into a 400.
+        resolved_role = UserRole(role).value if role else None
         if requesting_user.get_role() == UserRole.CUSTOMER:
             raise PermissionError("Only Staff can view all users.")
         if requesting_user.get_role() in (UserRole.MANAGER, UserRole.STAFF):
@@ -111,7 +115,7 @@ class UsersService:
     def search_users_by_branch(requesting_user, branch_code, role=None, name=None):
         if requesting_user.get_role() != UserRole.ADMIN:
             raise PermissionError("Only Admins can search users by branch.")
-        resolved_role = UserRole(role).value if role is not None else None
+        resolved_role = UserRole(role).value if role else None
         return UsersRepository.search_users_by_branch(branch_code, resolved_role, name)
 
     @staticmethod

@@ -52,6 +52,21 @@ def _require_user(user_id: int) -> Users:
     return user
 
 
+def _parse_int_param(value: Optional[str], field_name: str, default: Optional[int] = None) -> Optional[int]:
+    # Query params arrive as strings. FastAPI's own int coercion rejects an
+    # empty string outright (a blank form field, or an unfilled Postman
+    # placeholder both send `?field=` rather than omitting it) - treat that
+    # the same as not having sent the param at all, instead of a 400 that
+    # just says "not a valid integer" with no indication it's fine to just
+    # leave it out.
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"'{field_name}' must be an integer.")
+
+
 class UserCreate(BaseModel):
     name: str
     email: str
@@ -150,20 +165,22 @@ def login(payload: LoginRequest):
 
 @app.get("/users")
 def get_all_users(
-    requesting_user_id: int, skip: int = 0, limit: Optional[int] = None,
+    requesting_user_id: int, skip: Optional[str] = None, limit: Optional[str] = None,
     search: Optional[str] = None, role: Optional[str] = None,
 ):
     requesting_user = _require_user(requesting_user_id)
+    resolved_skip = _parse_int_param(skip, "skip", default=0)
+    resolved_limit = _parse_int_param(limit, "limit")
     try:
         # Fetch one extra row beyond what's requested so the caller can tell
         # whether another page exists (a full page back = more to load)
         # without a separate count query or changing the response from a
         # plain array.
-        fetch_limit = limit + 1 if limit is not None else None
+        fetch_limit = resolved_limit + 1 if resolved_limit is not None else None
         users = users_controller.get_all_users(
-            requesting_user, skip=skip, limit=fetch_limit, search=search, role=role)
-        if limit is not None:
-            users = users[:limit]
+            requesting_user, skip=resolved_skip, limit=fetch_limit, search=search, role=role)
+        if resolved_limit is not None:
+            users = users[:resolved_limit]
         return [_serialize_user(user) for user in users]
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -214,13 +231,16 @@ def delete_user(user_id: int, requesting_user_id: int):
 
 @app.get("/branches")
 def get_all_branches(
-    requesting_user_id: int, skip: int = 0, limit: Optional[int] = None, search: Optional[str] = None,
+    requesting_user_id: int, skip: Optional[str] = None, limit: Optional[str] = None, search: Optional[str] = None,
 ):
     requesting_user = _require_user(requesting_user_id)
-    fetch_limit = limit + 1 if limit is not None else None
-    branches = branches_controller.get_all_branches(requesting_user, skip=skip, limit=fetch_limit, search=search)
-    if limit is not None:
-        branches = branches[:limit]
+    resolved_skip = _parse_int_param(skip, "skip", default=0)
+    resolved_limit = _parse_int_param(limit, "limit")
+    fetch_limit = resolved_limit + 1 if resolved_limit is not None else None
+    branches = branches_controller.get_all_branches(
+        requesting_user, skip=resolved_skip, limit=fetch_limit, search=search)
+    if resolved_limit is not None:
+        branches = branches[:resolved_limit]
     return [_serialize_branch(branch) for branch in branches]
 
 
@@ -258,16 +278,19 @@ def delete_branch(branch_code: str, requesting_user_id: int):
 
 @app.get("/accounts")
 def get_all_accounts(
-    requesting_user_id: int, owner_id: Optional[int] = None,
-    skip: int = 0, limit: Optional[int] = None, search: Optional[str] = None,
+    requesting_user_id: int, owner_id: Optional[str] = None,
+    skip: Optional[str] = None, limit: Optional[str] = None, search: Optional[str] = None,
 ):
     requesting_user = _require_user(requesting_user_id)
+    resolved_owner_id = _parse_int_param(owner_id, "owner_id")
+    resolved_skip = _parse_int_param(skip, "skip", default=0)
+    resolved_limit = _parse_int_param(limit, "limit")
     try:
-        fetch_limit = limit + 1 if limit is not None else None
+        fetch_limit = resolved_limit + 1 if resolved_limit is not None else None
         accounts = accounts_controller.get_all_accounts(
-            requesting_user, owner_id, skip=skip, limit=fetch_limit, search=search)
-        if limit is not None:
-            accounts = accounts[:limit]
+            requesting_user, resolved_owner_id, skip=resolved_skip, limit=fetch_limit, search=search)
+        if resolved_limit is not None:
+            accounts = accounts[:resolved_limit]
         # One batch lookup for the whole page's owner names, rather than a
         # $lookup join per request or an N+1 fetch per account - the join
         # cost stays flat as the total accounts/users collections grow,

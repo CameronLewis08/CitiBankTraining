@@ -1,7 +1,9 @@
 import pytest
 
 from Models.Users import Users
+from Repos.AccountsRepo import AccountsRepository
 from Repos.BranchesRepo import BranchesRepository
+from Repos.UsersRepo import UsersRepository
 from Services.BranchesService import BranchesService
 from Utilities.Status import UserRole
 
@@ -32,3 +34,17 @@ def test_delete_branch_rejects_manager():
     manager = make_user(UserRole.MANAGER)
     with pytest.raises(PermissionError):
         BranchesService.delete_branch(manager, "BR001")
+
+
+def test_delete_branch_cascades_accounts_and_clears_user_branch_codes(monkeypatch):
+    admin = make_user(UserRole.ADMIN)
+    calls = []
+    monkeypatch.setattr(AccountsRepository, "delete_accounts_by_branch",
+                         staticmethod(lambda branch_code: calls.append(("accounts", branch_code)) or 3))
+    monkeypatch.setattr(UsersRepository, "clear_branch_code_by_branch",
+                         staticmethod(lambda branch_code: calls.append(("users", branch_code)) or 2))
+    monkeypatch.setattr(BranchesRepository, "delete_branch",
+                         staticmethod(lambda branch_code: calls.append(("branch", branch_code)) or True))
+
+    assert BranchesService.delete_branch(admin, "BR001") is True
+    assert calls == [("accounts", "BR001"), ("users", "BR001"), ("branch", "BR001")]

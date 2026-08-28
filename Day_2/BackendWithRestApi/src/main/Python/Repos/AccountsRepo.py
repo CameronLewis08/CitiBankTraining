@@ -160,6 +160,18 @@ class AccountsRepository:
         return result.deleted_count > 0
 
     @staticmethod
+    def delete_accounts_by_branch(branch_code):
+        # Cascade for BranchesService.delete_branch: an account can't exist
+        # without a branch (branch_code is required at creation), so a
+        # deleted branch's accounts are hard-deleted rather than orphaned.
+        if not branch_code:
+            raise ValueError("Branch code must be provided.")
+
+        collection = get_database().accounts
+        result = collection.delete_many({"branch_code": branch_code})
+        return result.deleted_count
+
+    @staticmethod
     def set_status(account_id, status: AccountStatus, requesting_user_id=None):
         account = AccountsRepository.get_account_by_id(account_id, requesting_user_id)
         if account is None:
